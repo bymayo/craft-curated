@@ -27,7 +27,6 @@ Craft's `relations` table stores `sortOrder`, but it's keyed on the *source* of 
 - **Six element types**: Entries, Categories, Assets, Users, Commerce Products and Variants. Narrow by source (Section, Group, Volume, Product Type).
 - **Native Twig**: `category.curatedProducts.all()` returns a chainable `ElementQuery`.
 - **Per-site ordering**: different order per site.
-- **Customizable editor notice**: plugin setting; subtle help text rendered under every Curated field.
 
 ## How Curated compares
 
@@ -87,7 +86,7 @@ Chain any normal query method:
 
 The second argument is the handle of the Curated field on the parent. Returns empty if the field doesn't exist on that layout.
 
-## How auto-discovery works
+## How Curated works
 
 Curated queries every native relation between this parent and elements of the target type, in either direction:
 
@@ -98,7 +97,23 @@ Both surface in the Curated field. The displayed list is `[saved curated order] 
 
 ### Sync utility
 
-**Utilities → Curated Sync** (and `php craft curated/sync`) snapshots currently-related elements into explicit curated order. Optional; auto-discovery already shows them.
+Go to **Utilities → Curated Sync** in the CP and click **Sync now**. This snapshots every currently-related element into `curated_relations` so its position is explicit, persisted, and no longer dependent on Default Placement.
+
+You don't need to run it for the field to work. Reach for it when you want to:
+
+- Lock in the existing order across all Curated fields after a migration or bulk import, so future native relations land at the bottom (or wherever Default Placement says) instead of mixing with established items.
+- Freeze the current view as a baseline before changing the Default Placement setting.
+- Reset to a known state after large data changes.
+
+It's idempotent. Items already in `curated_relations` aren't moved or duplicated.
+
+### Console command
+
+```sh
+php craft curated/sync
+```
+
+Same operation as the Sync utility, just from the terminal. Useful in CI pipelines, post-deploy hooks, or any scripted environment where opening the CP isn't practical.
 
 ## Supported element types
 
