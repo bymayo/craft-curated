@@ -2,11 +2,7 @@
 
 # Curated for Craft CMS 5
 
-Curated lets editors **manually order related elements per source**. Works with Entries, Categories, Assets, Users, and (when Craft Commerce is installed) Products and Variants. The same target can sit at position 1 on one source and position 9 on another, which Craft's native relations table can't do.
-
-## Why
-
-Craft's `relations` table stores `sortOrder`, but it's keyed on whichever element owns the relation field. If Entries have a Categories field, the order is "this entry's categories", not "this category's entries." Same problem applies to Products in Categories, Assets in Albums, Users on Team entries, or any setup where the relation lives on one side but you want to order from the other. Curated stores per-source order in its own join table, so every source keeps its own independent order regardless of which side owns the relation.
+Craft can show you related elements, but can't reorder them when the relation lives on the other side. **Curated fixes that.** Add a Product to your *T-shirts* category and it shows up automatically in *T-shirts'* Curated field, ready to drag into place. The same Product can sit at #1 in *T-shirts* and #9 in *Sale*, each category with its own independent order. Works with Entries, Categories, Assets, Users, and (with Craft Commerce) Products and Variants.
 
 ## Perfect for…
 
