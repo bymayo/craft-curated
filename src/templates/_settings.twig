@@ -1,7 +1,14 @@
 {% import "_includes/forms" as forms %}
 
+{% css %}
+#content-container form > .field:first-child,
+#content > form > .field:first-child {
+    margin-top: 0;
+}
+{% endcss %}
+
 {{ forms.textareaField({
-    label: "Editor notice"|t('curated'),
+    label: "Notice"|t('curated'),
     instructions: "Subtle help text rendered below every Curated field input. Leave blank to hide."|t('curated'),
     id: 'editorNotice',
     name: 'editorNotice',

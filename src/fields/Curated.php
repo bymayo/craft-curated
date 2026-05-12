@@ -48,8 +48,22 @@ class Curated extends Field
      */
     public string|array $sources = '*';
 
-    /** 'list' or 'large' — matches native Entries / Assets fields */
+    /** One of 'list', 'list-inline', 'cards', 'cards-grid'. Matches Craft's BaseRelationField constants. */
     public string $viewMode = 'list';
+
+    public function init(): void
+    {
+        parent::init();
+        // Normalize legacy view-mode values from earlier builds.
+        if ($this->viewMode === 'large') {
+            $this->viewMode = 'list-inline';
+        } elseif ($this->viewMode === 'cardsGrid') {
+            $this->viewMode = 'cards-grid';
+        }
+    }
+
+    /** Custom label for the "Add an element" button. Null = Craft's default. */
+    public ?string $selectionLabel = null;
 
     /**
      * Initial ordering applied to auto-discovered native relations that
@@ -98,9 +112,10 @@ class Curated extends Field
         return array_merge(parent::defineRules(), [
             [['targetElementType'], 'required'],
             [['targetElementType'], 'string'],
-            [['viewMode'], 'in', 'range' => ['list', 'large']],
+            [['viewMode'], 'in', 'range' => ['list', 'list-inline', 'cards', 'cards-grid']],
             [['initialSort'], 'in', 'range' => self::SORT_OPTIONS],
             [['sources'], 'safe'],
+            [['selectionLabel'], 'string'],
         ]);
     }
 
@@ -111,6 +126,27 @@ class Curated extends Field
      * Curated fields.
      */
     public function setTrackRelationFieldHandle(mixed $value): void
+    {
+    }
+
+    /**
+     * Legacy shim — earlier builds stored `showCardsInGrid` as its own bool.
+     * It's now folded into `viewMode` as the `cardsGrid` value. Translate
+     * old settings on load: if it was `true`, bump viewMode to 'cardsGrid'.
+     */
+    public function setShowCardsInGrid(mixed $value): void
+    {
+        if ($value && $this->viewMode === 'cards') {
+            $this->viewMode = 'cards-grid';
+        }
+    }
+
+    /** Legacy shim — silently absorb removed settings. */
+    public function setShowUnpermittedSections(mixed $value): void
+    {
+    }
+
+    public function setShowUnpermittedEntries(mixed $value): void
     {
     }
 
@@ -137,6 +173,41 @@ class Curated extends Field
             'field' => $this,
             'elementTypes' => $this->elementTypeOptions(),
             'sourcesByType' => $this->sourcesByType(),
+            'viewModePickerHtml' => $this->renderViewModePicker(),
+        ]);
+    }
+
+    private function renderViewModePicker(): string
+    {
+        $bundle = Craft::$app->getView()->registerAssetBundle(\craft\web\assets\cp\CpAsset::class);
+        $iconsUrl = $bundle->baseUrl . '/images/view-modes';
+
+        $modes = [
+            'list' => Craft::t('curated', 'List'),
+            'list-inline' => Craft::t('curated', 'Inline list'),
+            'cards' => Craft::t('curated', 'Cards'),
+            'cards-grid' => Craft::t('curated', 'Card grid'),
+        ];
+
+        $html = \craft\helpers\Html::beginTag('div', ['class' => ['flex', 'items-start', 'gap-l']]);
+        foreach ($modes as $key => $label) {
+            $html .= \craft\helpers\Html::beginTag('label', ['class' => 'nowrap'])
+                . \craft\helpers\Html::img("$iconsUrl/$key.svg", [
+                    'class' => 'mb-xs',
+                    'width' => $key === 'list' ? 48 : 80,
+                    'height' => 60,
+                    'alt' => '',
+                ])
+                . \craft\helpers\Html::radio('viewMode', $key === $this->viewMode, ['value' => $key])
+                . ' ' . \craft\helpers\Html::encode($label)
+                . \craft\helpers\Html::endTag('label');
+        }
+        $html .= \craft\helpers\Html::endTag('div');
+
+        return \craft\helpers\Cp::fieldHtml($html, [
+            'label' => Craft::t('curated', 'View Mode'),
+            'instructions' => Craft::t('curated', 'Choose how the field should look for authors.'),
+            'id' => 'viewMode',
         ]);
     }
 
@@ -148,7 +219,7 @@ class Curated extends Field
 
         $this->registerFieldJs();
 
-        $pickerHtml = Cp::elementSelectHtml([
+        $pickerConfig = [
             'name' => $this->handle,
             'elementType' => $this->targetElementType,
             'sources' => $this->sources === '*' ? null : $this->sources,
@@ -163,7 +234,13 @@ class Curated extends Field
             'containerAttributes' => [
                 'data' => ['curated' => '1'],
             ],
-        ]);
+        ];
+
+        if ($this->selectionLabel !== null && $this->selectionLabel !== '') {
+            $pickerConfig['selectionLabel'] = Craft::t('site', $this->selectionLabel);
+        }
+
+        $pickerHtml = Cp::elementSelectHtml($pickerConfig);
 
         return $this->renderSortToolbar($element) . $pickerHtml . $this->renderEditorNotice();
     }

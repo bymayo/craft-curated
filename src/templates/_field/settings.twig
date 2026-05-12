@@ -1,35 +1,5 @@
 {% import "_includes/forms" as forms %}
 
-{{ forms.selectField({
-    label: "View mode"|t('curated'),
-    instructions: "How selected elements should be displayed in the picker."|t('curated'),
-    id: 'viewMode',
-    name: 'viewMode',
-    options: [
-        { value: 'list', label: 'List' },
-        { value: 'large', label: 'Large thumbnails' },
-    ],
-    value: field.viewMode,
-}) }}
-
-{{ forms.selectField({
-    label: "Default Placement"|t('curated'),
-    instructions: "Where auto-discovered relations are placed before they're explicitly ordered. Items you've dragged keep their saved position regardless."|t('curated'),
-    id: 'initialSort',
-    name: 'initialSort',
-    options: [
-        { value: 'none', label: 'After other elements'|t('curated') },
-        { value: 'placeAtTop', label: 'Before other elements'|t('curated') },
-        { value: 'titleAsc', label: 'Title (A–Z)'|t('curated') },
-        { value: 'titleDesc', label: 'Title (Z–A)'|t('curated') },
-        { value: 'dateCreatedDesc', label: 'Date created (newest first)'|t('curated') },
-        { value: 'dateCreatedAsc', label: 'Date created (oldest first)'|t('curated') },
-        { value: 'dateUpdatedDesc', label: 'Date updated (newest first)'|t('curated') },
-        { value: 'random', label: 'Random'|t('curated') },
-    ],
-    value: field.initialSort,
-}) }}
-
 {# Build the dropdown options: [class => label] → [{value, label}] #}
 {% set typeOptions = [] %}
 {% for class, label in elementTypes %}
@@ -77,6 +47,34 @@
         {% endif %}
     </div>
 {% endfor %}
+
+{{ forms.selectField({
+    label: "Default Placement"|t('curated'),
+    instructions: "Where auto-discovered relations are placed before they're explicitly ordered. Items you've dragged keep their saved position regardless."|t('curated'),
+    id: 'initialSort',
+    name: 'initialSort',
+    options: [
+        { value: 'none', label: 'After other elements'|t('curated') },
+        { value: 'placeAtTop', label: 'Before other elements'|t('curated') },
+        { value: 'titleAsc', label: 'Title (A–Z)'|t('curated') },
+        { value: 'titleDesc', label: 'Title (Z–A)'|t('curated') },
+        { value: 'dateCreatedDesc', label: 'Date created (newest first)'|t('curated') },
+        { value: 'dateCreatedAsc', label: 'Date created (oldest first)'|t('curated') },
+        { value: 'dateUpdatedDesc', label: 'Date updated (newest first)'|t('curated') },
+        { value: 'random', label: 'Random'|t('curated') },
+    ],
+    value: field.initialSort,
+}) }}
+
+{{ viewModePickerHtml|raw }}
+
+{{ forms.textField({
+    label: '"Add" button label'|t('curated'),
+    instructions: "Custom label for the picker's add button. Leave blank for Craft's default (e.g. \"Add an entry\")."|t('curated'),
+    id: 'selectionLabel',
+    name: 'selectionLabel',
+    value: field.selectionLabel,
+}) }}
 
 {# Type switch: hide inactive wrappers and blank their input `name` so they #}
 {# don't submit. We leave `disabled` alone so Craft's CheckboxSelect JS keeps #}
