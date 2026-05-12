@@ -337,7 +337,7 @@ class Curated extends Field implements PreviewableFieldInterface
         $siteId = (int)($element?->siteId ?? 0);
 
         $options = [
-            ['value' => '', 'label' => Craft::t('curated', 'Sort by…')],
+            ['value' => '', 'label' => Craft::t('curated', 'Sort by')],
             ['value' => self::SORT_TITLE_ASC, 'label' => Craft::t('curated', 'Title (A–Z)')],
             ['value' => self::SORT_TITLE_DESC, 'label' => Craft::t('curated', 'Title (Z–A)')],
             ['value' => self::SORT_DATE_CREATED_DESC, 'label' => Craft::t('curated', 'Date created (newest first)')],
@@ -369,8 +369,8 @@ class Curated extends Field implements PreviewableFieldInterface
             $fieldId,
             $sourceId,
             $siteId,
-            $selectHtml,
-            $searchHtml
+            $searchHtml,
+            $selectHtml
         );
     }
 
@@ -561,10 +561,12 @@ JS;
     margin-bottom: 14px;
 }
 .curated-search {
-    flex: 1 1 240px;
-    min-width: 200px;
-    max-width: 320px;
+    flex: 0 0 200px;
+    max-width: 200px;
     margin: 0;
+}
+.curated-sort-toolbar .select {
+    max-width: 200px;
 }
 .curated-editor-notice {
     display: flex;
