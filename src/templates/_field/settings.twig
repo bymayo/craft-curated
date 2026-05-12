@@ -59,6 +59,14 @@
 
 {{ viewModePickerHtml|raw }}
 
+{{ forms.lightswitchField({
+    label: "Allow adding elements"|t('curated'),
+    instructions: "Show add button. Items added through it appear only in this field, not elsewhere as related items."|t('curated'),
+    id: 'allowAdd',
+    name: 'allowAdd',
+    on: field.allowAdd,
+}) }}
+
 {{ forms.textField({
     label: '"Add" Button Label'|t('curated'),
     instructions: "The text label for element selection buttons."|t('curated'),

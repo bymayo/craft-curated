@@ -66,6 +66,14 @@ class Curated extends Field
     public ?string $selectionLabel = null;
 
     /**
+     * Show the "Add an element" button on the picker. Off by default —
+     * Curated is an ordering layer over native relations; adding via the
+     * picker creates a curated-only row that doesn't show up in
+     * `relatedTo()` queries. Enable to allow that behavior anyway.
+     */
+    public bool $allowAdd = false;
+
+    /**
      * Initial ordering applied to auto-discovered native relations that
      * aren't yet in the curated order. Once an editor drags, that order
      * is persisted and this setting no longer applies to those items.
@@ -150,6 +158,7 @@ class Curated extends Field
             [['initialSort'], 'in', 'range' => self::SORT_OPTIONS],
             [['sources'], 'safe'],
             [['selectionLabel'], 'string'],
+            [['allowAdd'], 'boolean'],
         ]);
     }
 
@@ -290,6 +299,7 @@ class Curated extends Field
             'viewMode' => $this->viewMode,
             'showSiteMenu' => true,
             'fieldId' => $this->id,
+            'allowAdd' => $this->allowAdd,
             // Marker on the picker's container so the chip-menu JS patch can
             // detect this is a Curated field and only add its extra items
             // here, not in other element pickers across the CP.
@@ -518,7 +528,7 @@ JS;
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 18px;
+    margin-top: 6px;
     font-size: 12px;
     line-height: 1.4;
 }

@@ -24,6 +24,7 @@ Curated stores per-parent order in its own join table, so every Category (or any
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
 - **Auto-discovery** — every native relation between the parent and an element of the chosen type surfaces in the field, in either direction, with no configuration
 - **Default Placement** — field setting that mirrors Craft's "Default Entry Placement" pattern: place auto-discovered relations before or after other elements, or sort by title / date created / date updated / random (plus **price** when the target is a Commerce Product or Variant)
+- **Ordering-first by default** — the picker's "Add" button is hidden by default so the Curated field stays in sync with native relations. Flip the **Allow adding elements** field setting on when you want editors to attach elements directly through the picker (creating curated-only rows that won't appear in `relatedTo()` queries).
 - **Quick reorder actions** — every chip gets Move to top, Move to bottom, Move up, Move down, Move to position N right inside its native action menu, so editors can wrangle long lists without dragging
 - **One field, six element types** — Entries, Categories, Assets, Users, and (when Commerce is installed) Products & Variants; narrow by source (Section, Group, Volume, Product Type, …) at field config time
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
