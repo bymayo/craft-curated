@@ -1,6 +1,6 @@
 <?php
 
-namespace bymayo\curate\records;
+namespace bymayo\curated\records;
 
 use craft\db\ActiveRecord;
 
@@ -16,6 +16,6 @@ class CuratedRelation extends ActiveRecord
 {
     public static function tableName(): string
     {
-        return '{{%curate_relations}}';
+        return '{{%curated_relations}}';
     }
 }

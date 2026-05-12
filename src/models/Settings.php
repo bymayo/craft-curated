@@ -1,11 +1,11 @@
 <?php
 
-namespace bymayo\curate\models;
+namespace bymayo\curated\models;
 
 use craft\base\Model;
 
 /**
- * Curate settings
+ * Curated settings
  */
 class Settings extends Model
 {

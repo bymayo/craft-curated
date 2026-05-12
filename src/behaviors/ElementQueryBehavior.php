@@ -1,8 +1,9 @@
 <?php
 
-namespace bymayo\curate\behaviors;
+namespace bymayo\curated\behaviors;
 
-use bymayo\curate\Plugin;
+use bymayo\curated\fields\Curated as CuratedField;
+use bymayo\curated\Plugin;
 use craft\base\ElementInterface;
 use craft\elements\db\ElementQuery;
 use craft\events\CancelableEvent;
@@ -19,8 +20,8 @@ use yii\base\Behavior;
  */
 class ElementQueryBehavior extends Behavior
 {
-    public ?ElementInterface $curateSource = null;
-    public ?string $curateFieldHandle = null;
+    public ?ElementInterface $curatedSource = null;
+    public ?string $curatedFieldHandle = null;
 
     public function events(): array
     {
@@ -33,27 +34,26 @@ class ElementQueryBehavior extends Behavior
     {
         /** @var ElementQuery $owner */
         $owner = $this->owner;
-        $this->curateSource = $source;
-        $this->curateFieldHandle = $fieldHandle;
+        $this->curatedSource = $source;
+        $this->curatedFieldHandle = $fieldHandle;
         return $owner;
     }
 
     public function beforePrepare(CancelableEvent $event): void
     {
-        if (!$this->curateSource || !$this->curateFieldHandle) {
+        if (!$this->curatedSource || !$this->curatedFieldHandle) {
             return;
         }
 
-        $field = $this->curateSource->getFieldLayout()
-            ?->getFieldByHandle($this->curateFieldHandle);
-        if (!$field) {
+        $field = $this->curatedSource->getFieldLayout()
+            ?->getFieldByHandle($this->curatedFieldHandle);
+        if (!$field instanceof CuratedField) {
             return;
         }
 
-        $ids = Plugin::getInstance()->curate->getTargetIds(
-            $field->id,
-            $this->curateSource->id,
-            $this->curateSource->siteId
+        $ids = Plugin::getInstance()->curated->getMergedTargetIds(
+            $field,
+            $this->curatedSource
         );
 
         /** @var ElementQuery $owner */

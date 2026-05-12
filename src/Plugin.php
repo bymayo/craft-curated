@@ -1,29 +1,32 @@
 <?php
 
-namespace bymayo\curate;
+namespace bymayo\curated;
 
-use bymayo\curate\behaviors\ElementQueryBehavior;
-use bymayo\curate\fields\CuratedRelations;
-use bymayo\curate\models\Settings;
-use bymayo\curate\services\Curate;
+use bymayo\curated\behaviors\ElementQueryBehavior;
+use bymayo\curated\fields\Curated as CuratedField;
+use bymayo\curated\models\Settings;
+use bymayo\curated\services\Curated;
+use bymayo\curated\utilities\CuratedSync;
 use Craft;
+use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\elements\db\ElementQuery;
 use craft\events\DefineBehaviorsEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\services\Fields;
+use craft\services\Utilities;
 use yii\base\Event;
 
 /**
- * Curate plugin
+ * Curated plugin
  *
  * @method static Plugin getInstance()
  * @method Settings getSettings()
  * @author Jason Mayo <jason@bymayo.co.uk>
  * @copyright Jason Mayo
  * @license MIT
- * @property-read Curate $curate
+ * @property-read Curated $curated
  */
 class Plugin extends BasePlugin
 {
@@ -33,19 +36,31 @@ class Plugin extends BasePlugin
     public static function config(): array
     {
         return [
-            'components' => ['curate' => Curate::class],
+            'components' => ['curated' => Curated::class],
         ];
     }
 
     public function init(): void
     {
         parent::init();
+
+        if (Craft::$app instanceof \craft\console\Application) {
+            $this->controllerNamespace = 'bymayo\\curated\\console\\controllers';
+        }
+
+        // Pre-rename field rows may still reference the old class FQN.
+        if (!class_exists('bymayo\\curated\\fields\\CuratedRelations', false)) {
+            class_alias(CuratedField::class, 'bymayo\\curated\\fields\\CuratedRelations');
+        }
+
         $this->attachEventHandlers();
     }
 
     public function getControllerNamespace(): string
     {
-        return 'bymayo\curate\controllers';
+        return Craft::$app instanceof \craft\console\Application
+            ? 'bymayo\\curated\\console\\controllers'
+            : 'bymayo\\curated\\controllers';
     }
 
     protected function createSettingsModel(): ?Model
@@ -55,10 +70,10 @@ class Plugin extends BasePlugin
 
     protected function settingsHtml(): ?string
     {
-        return Craft::$app->view->renderTemplate('curate/_settings.twig', [
+        return Craft::$app->view->renderTemplate('curated/_settings.twig', [
             'plugin' => $this,
             'settings' => $this->getSettings(),
-            'config' => Craft::$app->getConfig()->getConfigFromFile('curate'),
+            'config' => Craft::$app->getConfig()->getConfigFromFile('curated'),
         ]);
     }
 
@@ -68,7 +83,7 @@ class Plugin extends BasePlugin
             Fields::class,
             Fields::EVENT_REGISTER_FIELD_TYPES,
             function (RegisterComponentTypesEvent $event) {
-                $event->types[] = CuratedRelations::class;
+                $event->types[] = CuratedField::class;
             }
         );
 
@@ -76,7 +91,28 @@ class Plugin extends BasePlugin
             ElementQuery::class,
             ElementQuery::EVENT_DEFINE_BEHAVIORS,
             function (DefineBehaviorsEvent $event) {
-                $event->behaviors['curate'] = ElementQueryBehavior::class;
+                $event->behaviors['curated'] = ElementQueryBehavior::class;
+            }
+        );
+
+        Event::on(
+            Utilities::class,
+            Utilities::EVENT_REGISTER_UTILITIES,
+            function (RegisterComponentTypesEvent $event) {
+                $event->types[] = CuratedSync::class;
+            }
+        );
+
+        Event::on(
+            Element::class,
+            Element::EVENT_AFTER_DELETE,
+            function (\yii\base\Event $event) {
+                /** @var Element $element */
+                $element = $event->sender;
+                if (!$element->id) {
+                    return;
+                }
+                Plugin::getInstance()->curated->removeTargetEverywhere($element->id);
             }
         );
     }

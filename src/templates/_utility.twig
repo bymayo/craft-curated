@@ -1,0 +1,11 @@
+<p>{{ "Walks every Curated field that has a tracked relation field, finds every parent element using that field, and tops up the curated order with any missing related elements. Safe to re-run — already-curated items are left in place."|t('curated') }}</p>
+
+<form method="post" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('curated/sync/run') }}
+    {{ redirectInput('utilities/curated-sync') }}
+
+    <button type="submit" class="btn submit">
+        {{ "Sync now"|t('curated') }}
+    </button>
+</form>

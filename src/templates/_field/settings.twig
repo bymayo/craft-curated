@@ -1,8 +1,8 @@
 {% import "_includes/forms" as forms %}
 
 {{ forms.selectField({
-    label: "View mode"|t('curate'),
-    instructions: "How selected elements should be displayed in the picker."|t('curate'),
+    label: "View mode"|t('curated'),
+    instructions: "How selected elements should be displayed in the picker."|t('curated'),
     id: 'viewMode',
     name: 'viewMode',
     options: [
@@ -19,71 +19,68 @@
 {% endfor %}
 
 {{ forms.selectField({
-    label: "Element type"|t('curate'),
-    instructions: "Which element type can be curated in this field."|t('curate'),
+    label: "Element type"|t('curated'),
+    instructions: "Which element type can be curated in this field."|t('curated'),
     id: 'targetElementType',
     name: 'targetElementType',
     options: typeOptions,
     value: field.targetElementType,
     required: true,
-    toggle: true,
-    targetPrefix: 'curate-sources-',
 }) }}
 
-{% set selectedSources = field.sources is iterable ? field.sources : [] %}
-
+{# One Craft-native checkboxSelectField per element type. #}
+{# Only the active wrapper's inputs submit — see JS below. #}
 {% for class, options in sourcesByType %}
-    {% set wrapperId = 'curate-sources-' ~ (class|replace({'\\': '-'})) %}
-    <div id="{{ wrapperId }}" class="curate-sources field"
+    {% set classSlug = class|replace({'\\': '-'}) %}
+    {% set isActive = field.targetElementType == class %}
+
+    <div class="curated-sources"
          data-element-type="{{ class }}"
-         {% if field.targetElementType != class %}style="display:none"{% endif %}>
-
-        <div class="heading">
-            <label>{{ "Sources"|t('curate') }}</label>
-            <div class="instructions">
-                <p>{{ "Limit the picker to elements from these sources. Leave all unchecked for any source."|t('curate') }}</p>
+         {% if not isActive %}style="display:none"{% endif %}>
+        {% if options is empty %}
+            <div class="field">
+                <div class="heading">
+                    <label>{{ "Sources"|t('curated') }}</label>
+                </div>
+                <div class="input">
+                    <p class="light">{{ "No sources defined for this element type yet."|t('curated') }}</p>
+                </div>
             </div>
-        </div>
-
-        <div class="input">
-            {% if options is empty %}
-                <p class="light">{{ "No sources defined for this element type yet."|t('curate') }}</p>
-            {% else %}
-                {% for option in options %}
-                    {% set checked = option.value in selectedSources %}
-                    {% set active = field.targetElementType == class %}
-                    <div>
-                        <label>
-                            <input type="checkbox"
-                                   name="sources[]"
-                                   value="{{ option.value }}"
-                                   {% if checked %}checked{% endif %}
-                                   {% if not active %}disabled{% endif %}>
-                            {{ option.label }}
-                        </label>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        </div>
+        {% else %}
+            {{ forms.checkboxSelectField({
+                label: "Sources"|t('curated'),
+                instructions: "Which sources do you want to allow?"|t('curated'),
+                id: 'sources-' ~ classSlug,
+                name: 'sources',
+                options: options,
+                values: field.sources,
+                showAllOption: true,
+            }) }}
+        {% endif %}
     </div>
 {% endfor %}
 
-{# Native Craft `toggle` on the select handles show/hide, but it #}
-{# doesn't disable inputs in hidden wrappers — handle that here so the #}
-{# form only submits sources for the selected type. #}
+{# Type switch: hide inactive wrappers and blank their input `name` so they #}
+{# don't submit. We leave `disabled` alone so Craft's CheckboxSelect JS keeps #}
+{# managing the All / per-source toggle state inside each wrapper. #}
 {% js %}
 (function() {
     var typeSelect = document.getElementById('{{ "targetElementType"|namespaceInputId }}');
     if (!typeSelect) return;
+
     function sync() {
-        document.querySelectorAll('.curate-sources').forEach(function(wrapper) {
+        document.querySelectorAll('.curated-sources').forEach(function(wrapper) {
             var active = wrapper.dataset.elementType === typeSelect.value;
-            wrapper.querySelectorAll('input[type=checkbox]').forEach(function(input) {
-                input.disabled = !active;
-                if (!active) input.checked = false;
+            wrapper.style.display = active ? '' : 'none';
+            wrapper.querySelectorAll('input').forEach(function(input) {
+                if (!input.dataset.curatedOriginalName && input.name) {
+                    input.dataset.curatedOriginalName = input.name;
+                }
+                input.name = active ? (input.dataset.curatedOriginalName || '') : '';
             });
         });
     }
+
     typeSelect.addEventListener('change', sync);
     sync();
 })();

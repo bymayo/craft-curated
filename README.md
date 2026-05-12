@@ -1,31 +1,31 @@
-<img src="https://github.com/bymayo/craft-curate/blob/craft-5/resources/icon.png" width="60">
+<img src="https://raw.githubusercontent.com/bymayo/craft-curated/craft-5/src/icon.svg" width="60">
 
-# Curate for Craft CMS 5
+# Curated for Craft CMS 5
 
-Curate lets editors **manually order related elements per parent** — drag products into your preferred sequence inside a Category, drag entries inside an Author, drag anything inside anything. The same target can sit at position 1 in one parent and position 9 in another, which is the bit Craft's native relations table can't do.
+Curated lets editors **manually order related elements per parent** — drag products into your preferred sequence inside a Category, drag entries inside an Author, drag anything inside anything. The same target can sit at position 1 in one parent and position 9 in another, which is the bit Craft's native relations table can't do.
 
 ## Why
 
 Craft's `relations` table stores a `sortOrder`, but it's keyed on the *source* of the relation. If your Products have a Categories field, the order is "this product's categories", not "this category's products". The KB article ([Manually Sorting Commerce Products](https://craftcms.com/knowledge-base/manually-sorting-commerce-products)) gets around this by stuffing a Products field on a Global Set — which works, but only gives you one global order.
 
-Curate stores per-parent order in its own join table, so every Category (or any parent) keeps its own independent product order.
+Curated stores per-parent order in its own join table, so every Category (or any parent) keeps its own independent product order.
 
 ## Features
 
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
 - **One field, any element type** — Entries, Categories, Assets, Users, Tags, Commerce Products, anything Craft knows about; pick the type *and* the sub-source (Section, Group, Volume, …) at field config time
-- **Curated Relations field** — drop onto any element with a field layout
+- **Curated field** — drop onto any element with a field layout
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
 - **Per-site ordering** — different order per site if you want it
 - **Settings via `config.php` or env vars**
 
 ## Install
 
-- Install with Composer via `composer require bymayo/curate` from your project directory
+- Install with Composer via `composer require bymayo/curated` from your project directory
 - Enable / install the plugin in the Craft Control Panel under `Settings > Plugins`
-- Add a **Curated Relations** field to the parent element (e.g. Category) and set the target element type
+- Add a **Curated** field to the parent element (e.g. Category) and set the target element type
 
-You can also install via the Plugin Store by searching for **Curate**.
+You can also install via the Plugin Store by searching for **Curated**.
 
 ## Requirements
 
@@ -34,11 +34,11 @@ You can also install via the Plugin Store by searching for **Curate**.
 
 ## Setup
 
-1. **Add the field.** Edit the field layout of your *parent* element (e.g. Category) and add a **Curated Relations** field.
+1. **Add the field.** Edit the field layout of your *parent* element (e.g. Category) and add a **Curated** field.
    - Give it a **handle** — e.g. `curatedProducts`, `curatedEntries`, `curatedAssets`. You'll access this in Twig.
-   - Pick an **Element type** — Entry, Category, Asset, User, Tag, Commerce Product, or anything else registered as an element type.
-   - Optionally tick **Sources** to limit the picker (e.g. only entries from the *News* section, only assets from the *Gallery* volume, only users from the *Customers* group). Leave all unchecked for "any source".
-2. **Order in the CP.** Open the parent element. Drag the children into your preferred order. Save.
+   - Pick an **Element type** — Entry, Category, Asset, User, Commerce Product, or Commerce Variant.
+   - Pick **Sources**, or leave **All** ticked to allow any source.
+2. **That's it for setup.** Open the parent element — the Curated field is already populated with every element of the chosen type that's natively related to this parent (any direction, any relation field). Drag to reorder, save.
 3. **Read on the front end.** The field returns a native `ElementQuery`, so it works like any other field:
 
    ```twig
@@ -66,7 +66,7 @@ If you have a child element type and want to *find* the curated order by a paren
     .all() %}
 ```
 
-The second argument is the handle of the Curated Relations field on the parent. If the field doesn't exist on the parent's field layout, the query returns an empty result.
+The second argument is the handle of the Curated field on the parent. If the field doesn't exist on the parent's field layout, the query returns an empty result.
 
 ## Recipes
 
@@ -108,31 +108,24 @@ The order is stored per site by default, so the same Twig works in multi-site se
 
 ## What about transparent `relatedTo()`?
 
-By design, Curate doesn't intercept native `relatedTo()` queries — your existing relations keep working unchanged, and the curated order is opt-in via either `parent.curatedHandle` or `craft.entries.curatedBy(...)`. Transparent interception is on the roadmap behind a setting.
+By design, Curated doesn't intercept native `relatedTo()` queries — your existing relations keep working unchanged, and the curated order is opt-in via either `parent.curatedHandle` or `craft.entries.curatedBy(...)`. Transparent interception is on the roadmap behind a setting.
 
-## Config
+## How auto-discovery works
 
-You can configure the plugin via the Control Panel under `Settings > Plugins > Curate`, or via a `config/curate.php` file (with env var support):
+The Curated field doesn't need to be configured to track a specific relation field. At read time it queries every native relation between this parent and elements of the configured target type — in either direction:
 
-```php
-<?php
+- Category has an Entries field pointing at entries (parent → target), **or**
+- Entry has a Categories field pointing at the category (target → parent)
 
-return [
-    'autoAppendNewItems' => true,
-    'pruneOnRelationRemoved' => true,
-];
-```
+Both surface in the Curated field on the Category.
 
-| Setting | Default | What it does |
-|---|---|---|
-| `autoAppendNewItems` | `true` | When a target element is newly linked to a parent via its native relation, append it to the end of the curated order automatically. |
-| `pruneOnRelationRemoved` | `true` | Remove curated entries when the underlying native relation is removed. |
+The displayed list is `[curated order, in saved order] + [native relations not yet in curated]`. So the first time you open a Category that already had related entries, they're all there — no setup, no backfill button. Drag to reorder; that order is what persists. New native relations made elsewhere (saving an Entry with this Category in its Categories field) show up the next time the Curated field is rendered.
+
+### Curated Sync utility (optional)
+
+There's also a **Utilities → Curated Sync** page (and a `php craft curated/sync` console command) that snapshots all currently-related elements into the explicit curated order. You usually don't need it — auto-discovery is already showing them — but it's useful if you want to lock in current positions so they don't move around when new natives are added.
 
 ## Supported element types
-
-Anything registered with Craft's element type registry — the field's Element type dropdown is populated dynamically, so anything new your plugins add (Commerce, Calendar, Campaign, custom element types) just shows up.
-
-Out of the box this covers:
 
 | Element type | Common use case |
 |---|---|
@@ -140,17 +133,35 @@ Out of the box this covers:
 | Category | Curate sub-categories under a parent |
 | Asset | Curate a gallery / lookbook / image carousel order |
 | User | Curate "Featured authors" or staff order on a Team page |
-| Tag | Curate tag display order |
 | Commerce Product | The headline use case — drag products inside a category |
 | Commerce Variant | Curate variant display order |
+
+Commerce types only appear when Craft Commerce is installed.
 
 Each element type is narrowed by its native source concept: Sections / Entry Types for Entries, Category Groups for Categories, Volumes for Assets, User Groups for Users, Product Types for Products, and so on.
 
 ## Caveats
 
-1. **The default relation field still works.** Curate doesn't replace native relations — it sits alongside them. The intent is: keep the canonical relation where Craft expects it (e.g. on the Product), and use Curate on the parent to express per-parent order.
-2. **Curate writes content, not Project Config.** Field settings are in Project Config (correct). The curated order itself is content and lives in the `curate_relations` table — do not expect it to sync between environments via project config.
-3. **Large lists.** The current drag-reorder UI is appropriate for hundreds of items, not tens of thousands. If you need to curate huge catalogues, raise an issue.
+1. **The default relation field still works.** Curated doesn't replace native relations — it sits alongside them. The intent is: keep the canonical relation where Craft expects it (e.g. on the Product), and use Curated on the parent to express per-parent order.
+2. **Removing a natively-related element from the Curated field is soft.** It drops out of your saved order, but reappears at the end on the next render because the native relation still exists. To remove it for good, remove the native relation.
+3. **Source-filter on natives is best-effort.** If you've restricted Sources on the Curated field, the picker filters as you'd expect, but auto-discovered natives are returned regardless of source. Items outside the configured sources still appear in the field's value.
+4. **Curated writes content, not Project Config.** Field settings are in Project Config (correct). The curated order itself is content and lives in the `curated_relations` table — do not expect it to sync between environments via project config.
+5. **Large lists.** The current drag-reorder UI is appropriate for hundreds of items, not tens of thousands. If you need to curate huge catalogues, raise an issue.
+
+When an element is deleted, it's removed from every curated list automatically so the order doesn't carry dangling IDs.
+
+### `max_input_vars` and big lists
+
+PHP's `max_input_vars` (default `1000`) caps the number of form inputs a request can contain. Craft's native element picker — which this plugin uses for the chip UI — emits one hidden input per selected chip, so a Curated field with 1000+ items would normally lose items on save.
+
+To avoid that, Curated bundles every chip ID into a single JSON-encoded hidden input at submit time (the original chip inputs are disabled by JS so they don't count). One input regardless of size — `max_input_vars` is not a factor.
+
+If you're still seeing issues — for example, a list so large that the JSON payload exceeds `post_max_size`, or JavaScript is disabled — raise the relevant PHP limits in `php.ini`:
+
+```ini
+max_input_vars = 5000
+post_max_size = 16M
+```
 
 ## Support
 

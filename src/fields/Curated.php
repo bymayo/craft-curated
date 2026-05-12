@@ -1,16 +1,17 @@
 <?php
 
-namespace bymayo\curate\fields;
+namespace bymayo\curated\fields;
 
-use bymayo\curate\Plugin;
+use bymayo\curated\Plugin;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Cp;
+use craft\helpers\StringHelper;
 
 /**
- * Curated Relations field
+ * Curated field
  *
  * Placed on the PARENT element (e.g. a Category). Holds a manually
  * ordered list of child elements (e.g. Products) scoped to THIS parent
@@ -24,8 +25,18 @@ use craft\helpers\Cp;
  *   {% set products = category.curatedProducts.all() %}
  *   {% set top3    = category.curatedProducts.limit(3).all() %}
  */
-class CuratedRelations extends Field
+class Curated extends Field
 {
+    /** Element types offered in the field config picker. Commerce types are optional. */
+    private const SUPPORTED_TYPES = [
+        \craft\elements\Asset::class,
+        \craft\elements\Category::class,
+        \craft\elements\Entry::class,
+        \craft\elements\User::class,
+        'craft\\commerce\\elements\\Product',
+        'craft\\commerce\\elements\\Variant',
+    ];
+
     /** Fully-qualified element class — e.g. craft\elements\Entry::class */
     public string $targetElementType = '';
 
@@ -43,7 +54,7 @@ class CuratedRelations extends Field
 
     public static function displayName(): string
     {
-        return 'Curated Relations';
+        return 'Curated';
     }
 
     public static function phpType(): string
@@ -66,9 +77,36 @@ class CuratedRelations extends Field
         ]);
     }
 
+    /**
+     * Legacy shim — earlier builds had a `trackRelationFieldHandle` setting
+     * persisted in field settings JSON. Swallow it on load so Yii doesn't
+     * throw on existing rows. Remove once all sites have re-saved their
+     * Curated fields.
+     */
+    public function setTrackRelationFieldHandle(mixed $value): void
+    {
+    }
+
+    public function beforeValidate(): bool
+    {
+        if (is_array($this->sources)) {
+            $filtered = array_values(array_filter(
+                $this->sources,
+                fn($v) => $v !== '' && $v !== null
+            ));
+            // "All" picked, or nothing picked → collapse to '*'
+            if (!$filtered || in_array('*', $filtered, true)) {
+                $this->sources = '*';
+            } else {
+                $this->sources = $filtered;
+            }
+        }
+        return parent::beforeValidate();
+    }
+
     public function getSettingsHtml(): ?string
     {
-        return Craft::$app->getView()->renderTemplate('curate/_field/settings', [
+        return Craft::$app->getView()->renderTemplate('curated/_field/settings', [
             'field' => $this,
             'elementTypes' => $this->elementTypeOptions(),
             'sourcesByType' => $this->sourcesByType(),
@@ -81,7 +119,7 @@ class CuratedRelations extends Field
             ? $value->status(null)->all()
             : [];
 
-        return Cp::elementSelectHtml([
+        $pickerHtml = Cp::elementSelectHtml([
             'name' => $this->handle,
             'elementType' => $this->targetElementType,
             'sources' => $this->sources === '*' ? null : $this->sources,
@@ -90,6 +128,68 @@ class CuratedRelations extends Field
             'viewMode' => $this->viewMode,
             'showSiteMenu' => true,
         ]);
+
+        // Bundle every chip ID into a single JSON-encoded hidden input so we
+        // submit one input regardless of list size. Chips remain in the DOM
+        // (with name="<handle>[]") for the picker UI but get disabled by the
+        // JS below, so they don't count toward PHP's max_input_vars.
+        $bundleId = 'curated-bundle-' . StringHelper::randomString(10);
+        $initialIds = array_values(array_map(fn($e) => (int)$e->id, $elements));
+        $bundleValue = htmlspecialchars(json_encode($initialIds), ENT_QUOTES);
+        $handle = htmlspecialchars($this->handle, ENT_QUOTES);
+
+        $bundleHtml = sprintf(
+            '<input type="hidden" name="%s" id="%s" value="%s">',
+            $handle,
+            htmlspecialchars($bundleId, ENT_QUOTES),
+            $bundleValue
+        );
+
+        $this->registerBundleJs($bundleId, $this->handle);
+
+        return $pickerHtml . $bundleHtml;
+    }
+
+    /**
+     * Bundles all chip inputs into a single JSON hidden input before submit,
+     * so large curated lists don't get clipped by PHP's max_input_vars.
+     */
+    private function registerBundleJs(string $bundleId, string $handle): void
+    {
+        $jsHandle = json_encode($handle);
+        $jsBundleId = json_encode($bundleId);
+
+        $js = <<<JS
+(function() {
+    var bundle = document.getElementById({$jsBundleId});
+    if (!bundle) return;
+    var wrapper = bundle.parentNode;
+    if (!wrapper) return;
+    var handle = {$jsHandle};
+    // Namespacing prefixes names but never appends, so the chip names always
+    // end with `<handle>[]`. The bundle input is excluded by `:not(#…)`.
+    var selector = 'input[type="hidden"][name\$="' + handle + '[]"]';
+
+    function sync() {
+        var inputs = wrapper.querySelectorAll(selector);
+        var ids = [];
+        inputs.forEach(function(input) {
+            input.disabled = true;
+            if (input.value) ids.push(input.value);
+        });
+        bundle.value = JSON.stringify(ids);
+    }
+
+    new MutationObserver(sync).observe(wrapper, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+    });
+    sync();
+})();
+JS;
+
+        Craft::$app->getView()->registerJs($js);
     }
 
     public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed
@@ -124,7 +224,7 @@ class CuratedRelations extends Field
         };
 
         if ($ids !== null) {
-            Plugin::getInstance()->curate->saveOrder(
+            Plugin::getInstance()->curated->saveOrder(
                 $this->id,
                 $element->id,
                 $element->siteId,
@@ -140,8 +240,12 @@ class CuratedRelations extends Field
      */
     private function elementTypeOptions(): array
     {
+        $registered = Craft::$app->getElements()->getAllElementTypes();
         $types = [];
-        foreach (Craft::$app->getElements()->getAllElementTypes() as $class) {
+        foreach (self::SUPPORTED_TYPES as $class) {
+            if (!in_array($class, $registered, true) || !class_exists($class)) {
+                continue;
+            }
             /** @var class-string<ElementInterface> $class */
             $types[$class] = $class::displayName();
         }
@@ -185,6 +289,15 @@ class CuratedRelations extends Field
     private function resolveIds(mixed $value, ?ElementInterface $element): array
     {
         if (is_string($value)) {
+            $trimmed = trim($value);
+            // Bundled JSON from getInputHtml's hidden input.
+            if ($trimmed !== '' && $trimmed[0] === '[') {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    return array_values(array_filter(array_map('intval', $decoded)));
+                }
+            }
+            // Legacy comma-separated form.
             return array_values(array_filter(array_map('intval', explode(',', $value))));
         }
         if (is_array($value)) {
@@ -193,10 +306,6 @@ class CuratedRelations extends Field
         if (!$element || !$element->id) {
             return [];
         }
-        return Plugin::getInstance()->curate->getTargetIds(
-            $this->id,
-            $element->id,
-            $element->siteId
-        );
+        return Plugin::getInstance()->curated->getMergedTargetIds($this, $element);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace bymayo\curate\migrations;
+namespace bymayo\curated\migrations;
 
 use craft\db\Migration;
 
@@ -11,7 +11,7 @@ class Install extends Migration
 {
     public function safeUp(): bool
     {
-        $this->createTable('{{%curate_relations}}', [
+        $this->createTable('{{%curated_relations}}', [
             'id' => $this->primaryKey(),
             'fieldId' => $this->integer()->notNull(),
             'sourceId' => $this->integer()->notNull(),
@@ -25,24 +25,24 @@ class Install extends Migration
 
         $this->createIndex(
             null,
-            '{{%curate_relations}}',
+            '{{%curated_relations}}',
             ['fieldId', 'sourceId', 'sourceSiteId', 'targetId'],
             true
         );
-        $this->createIndex(null, '{{%curate_relations}}', ['sourceId', 'sortOrder']);
-        $this->createIndex(null, '{{%curate_relations}}', ['targetId']);
+        $this->createIndex(null, '{{%curated_relations}}', ['sourceId', 'sortOrder']);
+        $this->createIndex(null, '{{%curated_relations}}', ['targetId']);
 
-        $this->addForeignKey(null, '{{%curate_relations}}', ['fieldId'], '{{%fields}}', ['id'], 'CASCADE');
-        $this->addForeignKey(null, '{{%curate_relations}}', ['sourceId'], '{{%elements}}', ['id'], 'CASCADE');
-        $this->addForeignKey(null, '{{%curate_relations}}', ['targetId'], '{{%elements}}', ['id'], 'CASCADE');
-        $this->addForeignKey(null, '{{%curate_relations}}', ['sourceSiteId'], '{{%sites}}', ['id'], 'CASCADE');
+        $this->addForeignKey(null, '{{%curated_relations}}', ['fieldId'], '{{%fields}}', ['id'], 'CASCADE');
+        $this->addForeignKey(null, '{{%curated_relations}}', ['sourceId'], '{{%elements}}', ['id'], 'CASCADE');
+        $this->addForeignKey(null, '{{%curated_relations}}', ['targetId'], '{{%elements}}', ['id'], 'CASCADE');
+        $this->addForeignKey(null, '{{%curated_relations}}', ['sourceSiteId'], '{{%sites}}', ['id'], 'CASCADE');
 
         return true;
     }
 
     public function safeDown(): bool
     {
-        $this->dropTableIfExists('{{%curate_relations}}');
+        $this->dropTableIfExists('{{%curated_relations}}');
         return true;
     }
 }
