@@ -1,19 +1,11 @@
 {% import "_includes/forms" as forms %}
 
-{{ forms.lightswitchField({
-    label: "Auto-append new items"|t('curated'),
-    instructions: "When a related element is newly linked (e.g. a Product is categorised), append it to the end of the curated order automatically."|t('curated'),
-    id: 'autoAppendNewItems',
-    name: 'autoAppendNewItems',
-    on: settings.autoAppendNewItems,
-    disabled: config.autoAppendNewItems is defined,
-}) }}
-
-{{ forms.lightswitchField({
-    label: "Prune on relation removed"|t('curated'),
-    instructions: "Remove items from the curated order when their underlying native relation is removed."|t('curated'),
-    id: 'pruneOnRelationRemoved',
-    name: 'pruneOnRelationRemoved',
-    on: settings.pruneOnRelationRemoved,
-    disabled: config.pruneOnRelationRemoved is defined,
+{{ forms.textareaField({
+    label: "Editor notice"|t('curated'),
+    instructions: "Subtle help text rendered below every Curated field input. Leave blank to hide."|t('curated'),
+    id: 'editorNotice',
+    name: 'editorNotice',
+    value: settings.editorNotice,
+    rows: 3,
+    disabled: config.editorNotice is defined,
 }) }}

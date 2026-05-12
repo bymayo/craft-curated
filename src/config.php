@@ -2,11 +2,8 @@
 
 return [
 
-    // Append newly related elements to the end of the curated order
-    // automatically when their native relation is created.
-    'autoAppendNewItems' => true,
-
-    // Remove curated entries when the underlying native relation is removed.
-    'pruneOnRelationRemoved' => true,
+    // Subtle notice rendered below every Curated field input. Set to an
+    // empty string to hide it entirely.
+    'editorNotice' => 'Auto-populated from related items. Drag to reorder, or use the menu on each item for quick moves.',
 
 ];

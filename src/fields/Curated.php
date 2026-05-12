@@ -165,7 +165,19 @@ class Curated extends Field
             ],
         ]);
 
-        return $this->renderSortToolbar($element) . $pickerHtml;
+        return $this->renderSortToolbar($element) . $pickerHtml . $this->renderEditorNotice();
+    }
+
+    private function renderEditorNotice(): string
+    {
+        $text = trim((string)Plugin::getInstance()->getSettings()->editorNotice);
+        if ($text === '') {
+            return '';
+        }
+        return sprintf(
+            '<p class="curated-editor-notice light"><span data-icon="info" class="curated-editor-notice-icon" aria-hidden="true"></span>%s</p>',
+            htmlspecialchars($text)
+        );
     }
 
     private function renderSortToolbar(?ElementInterface $element): string
@@ -355,6 +367,20 @@ JS;
         Craft::$app->getView()->registerCss(<<<CSS
 .curated-sort-toolbar {
     margin-bottom: 14px;
+}
+.curated-editor-notice {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 18px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.curated-editor-notice-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
 }
 CSS);
     }
