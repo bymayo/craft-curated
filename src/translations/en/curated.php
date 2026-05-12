@@ -46,7 +46,7 @@ return [
     'Price (high to low)' => 'Price (high to low)',
 
     // Inline sort dropdown + search
-    'Sort by…' => 'Sort by…',
+    'Sort by' => 'Sort by',
     'Search' => 'Search',
     'Overwrite the current order?' => 'Overwrite the current order?',
 
