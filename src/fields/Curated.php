@@ -547,6 +547,7 @@ CSS);
 
         $query->id = $ids;
         $query->fixedOrder = true;
+        Plugin::getInstance()->curated->applySources($this, $query);
         return $query;
     }
 

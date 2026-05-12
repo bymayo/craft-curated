@@ -6,6 +6,7 @@ use bymayo\curated\fields\Curated as CuratedField;
 use bymayo\curated\records\CuratedRelation;
 use Craft;
 use craft\base\ElementInterface;
+use craft\elements\db\ElementQuery;
 use craft\helpers\StringHelper;
 use yii\base\Component;
 
@@ -80,9 +81,59 @@ class Curated extends Component
             ->siteId($parent->siteId)
             ->relatedTo($parent);
 
+        $this->applySources($field, $query);
         $this->applyInitialSort($query, $field->initialSort);
 
         return array_map('intval', $query->ids());
+    }
+
+    /**
+     * Apply the field's `sources` setting to a query so elements outside the
+     * configured sources are excluded. Reads each source's native criteria
+     * (e.g. `['sectionId' => 5]`) from the target element class's
+     * `::sources('settings')` declaration, merges them by criteria key, and
+     * applies them via ElementQuery property assignment.
+     *
+     * Idempotent for `'*'` (all sources). For element types whose sources
+     * use uncommon criteria keys (multiple per source), only the per-key
+     * union is applied.
+     */
+    public function applySources(CuratedField $field, ElementQuery $query): void
+    {
+        if ($field->sources === '*' || !is_array($field->sources) || empty($field->sources)) {
+            return;
+        }
+
+        $targetClass = $field->targetElementType;
+        if (!$targetClass || !class_exists($targetClass)) {
+            return;
+        }
+
+        /** @var class-string<ElementInterface> $targetClass */
+        $allSources = $targetClass::sources('settings');
+        $combined = [];
+
+        foreach ($allSources as $source) {
+            if (!is_array($source) || !isset($source['key'], $source['criteria'])) {
+                continue;
+            }
+            if (!in_array($source['key'], $field->sources, true)) {
+                continue;
+            }
+            foreach ((array)$source['criteria'] as $key => $value) {
+                $combined[$key] = $combined[$key] ?? [];
+                if (is_array($value)) {
+                    $combined[$key] = array_merge($combined[$key], $value);
+                } else {
+                    $combined[$key][] = $value;
+                }
+            }
+        }
+
+        foreach ($combined as $key => $values) {
+            $values = array_values(array_unique($values));
+            $query->$key = count($values) === 1 ? $values[0] : $values;
+        }
     }
 
     /**
@@ -128,7 +179,7 @@ class Curated extends Component
         return $sorted;
     }
 
-    private function applyInitialSort(\craft\elements\db\ElementQuery $query, string $sort): void
+    private function applyInitialSort(ElementQuery $query, string $sort): void
     {
         switch ($sort) {
             case CuratedField::SORT_TITLE_ASC:
