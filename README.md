@@ -107,7 +107,7 @@ You don't need this for Curated fields to work, they populate themselves. Run it
 php craft curated/sync
 ```
 
-Same operation as the Sync utility, just from the terminal. Useful in CI pipelines, post-deploy hooks, or any scripted environment where opening the CP isn't practical.
+Same as the Sync utility, just from the terminal. Handy after a deploy, or from a script.
 
 ## Supported element types
 
