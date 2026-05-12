@@ -47,11 +47,6 @@ Curated is about **ordering**, not establishing or proxying the relation itself.
 
 **Different jobs.** Many to Many and Reverse Relations *edit the inverse side* of one specific relation field. Curated *orders* whatever's already related (any direction, any field).
 
-Pick by use case:
-- Set up relations from the "wrong" side → Many to Many / Reverse Relations.
-- Order existing relations per parent → Curated.
-- Both → use them together.
-
 ## Install
 
 ```sh
@@ -67,9 +62,9 @@ Enable in `Settings > Plugins`, or install via the Plugin Store.
 
 ## Setup
 
-1. Add a **Curated** field to the parent element (e.g. Category). Pick the **Element type** (Entry, Category, Asset, User, Commerce Product / Variant) and optionally restrict **Sources**.
+1. Add a **Curated** field to the parent element (e.g. Category). Give it a **handle** (e.g. `curatedProducts`), pick the **Element type** (Entry, Category, Asset, User, Commerce Product / Variant), and optionally restrict **Sources**.
 2. Open the parent. The field is pre-populated with every matching element already natively related to this parent. Drag to reorder; save.
-3. Read on the front end via the field handle:
+3. Read on the front end via your field handle. The examples below assume the handle is `curatedProducts`:
 
 ```twig
 {% for product in category.curatedProducts.all() %}
@@ -91,32 +86,6 @@ Chain any normal query method:
 ```
 
 The second argument is the handle of the Curated field on the parent. Returns empty if the field doesn't exist on that layout.
-
-## Recipes
-
-### Curated first, then everything else
-
-Editors curate top picks; the rest fall back to a natural order.
-
-```twig
-{% set curated = category.curatedProducts.all() %}
-{% set curatedIds = curated|map(p => p.id) %}
-{% set rest = craft.products
-    .relatedTo(category)
-    .id(['not', curatedIds])
-    .orderBy('postDate desc')
-    .all() %}
-
-{% for product in curated|merge(rest) %}
-    {{ product.title }}
-{% endfor %}
-```
-
-### Top N curated picks
-
-```twig
-{% set featured = category.curatedProducts.limit(3).all() %}
-```
 
 ## How auto-discovery works
 
