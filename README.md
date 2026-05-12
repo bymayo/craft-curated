@@ -61,7 +61,7 @@ Enable in `Settings > Plugins`, or install via the Plugin Store.
 
 ## Setup
 
-1. Add a **Curated** field to the parent element (e.g. Category). Give it a **handle** (e.g. `curatedProducts`), pick the **Element type** (Entry, Category, Asset, User, Commerce Product / Variant), and optionally restrict **Sources**.
+1. Create a **Curated** field. Give it a **handle** (e.g. `curatedProducts`), pick the **Element type** (Entry, Category, Asset, User, Commerce Product / Variant), optionally restrict **Sources**, then add it to the field layout of the parent element (e.g. a Category).
 2. Open the parent. The field is pre-populated with every matching element already natively related to this parent. Drag to reorder; save.
 3. Read on the front end via your field handle. The examples below assume the handle is `curatedProducts`:
 
