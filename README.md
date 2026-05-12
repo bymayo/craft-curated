@@ -111,7 +111,7 @@ Both surface in the Curated field. The displayed list is `[saved curated order] 
 | Commerce Product | Drag products inside a category |
 | Commerce Variant | Variant display order |
 
-Commerce types appear when Craft Commerce is installed. Each type narrows by its native source (Sections for Entries, Groups for Categories, Volumes for Assets, Product Types for Products).
+Craft Commerce is required for Commerce Product and Variant types.
 
 ## Warnings
 
