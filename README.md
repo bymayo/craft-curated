@@ -2,11 +2,11 @@
 
 # Curated for Craft CMS 5
 
-Curated lets editors **manually order related elements per parent**. The same target can sit at position 1 in one parent and position 9 in another, which Craft's native relations table can't do.
+Curated lets editors **manually order related elements per parent**. Works with Entries, Categories, Assets, Users, and (when Craft Commerce is installed) Products and Variants. The same target can sit at position 1 in one parent and position 9 in another, which Craft's native relations table can't do.
 
 ## Why
 
-Craft's `relations` table stores `sortOrder`, but it's keyed on the *source* of the relation. If Products have a Categories field, the order is "this product's categories", not "this category's products." Curated stores per-parent order in its own join table, so every Category keeps its own independent order.
+Craft's `relations` table stores `sortOrder`, but it's keyed on the *source* of the relation. If Entries have a Categories field, the order is "this entry's categories", not "this category's entries." Same problem applies to Products in Categories, Assets in Albums, Users on Team entries, or any setup where the relation lives on one side but you want to order from the other. Curated stores per-parent order in its own join table, so every parent keeps its own independent order regardless of which side owns the relation.
 
 ## Perfect for…
 
@@ -18,7 +18,7 @@ Craft's `relations` table stores `sortOrder`, but it's keyed on the *source* of 
 
 ## Features
 
-- **Per-parent sort order**: the same Product can be #1 in *T-shirts* and #9 in *Sale*.
+- **Per-parent sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
 - **Auto-discovery**: every native relation between the parent and the target type surfaces in the field, in either direction, no configuration.
 - **Default Placement**: where auto-discovered relations land before they're explicitly ordered. Before or after other elements, title, date created/updated, random, plus **price** for Commerce Products and Variants.
 - **Quick reorder actions**: Move to top / bottom / position N inside each chip's menu, alongside Craft's Move up / Move down.
