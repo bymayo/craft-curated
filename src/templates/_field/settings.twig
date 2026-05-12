@@ -1,0 +1,90 @@
+{% import "_includes/forms" as forms %}
+
+{{ forms.selectField({
+    label: "View mode"|t('curate'),
+    instructions: "How selected elements should be displayed in the picker."|t('curate'),
+    id: 'viewMode',
+    name: 'viewMode',
+    options: [
+        { value: 'list', label: 'List' },
+        { value: 'large', label: 'Large thumbnails' },
+    ],
+    value: field.viewMode,
+}) }}
+
+{# Build the dropdown options: [class => label] → [{value, label}] #}
+{% set typeOptions = [] %}
+{% for class, label in elementTypes %}
+    {% set typeOptions = typeOptions|merge([{ value: class, label: label }]) %}
+{% endfor %}
+
+{{ forms.selectField({
+    label: "Element type"|t('curate'),
+    instructions: "Which element type can be curated in this field."|t('curate'),
+    id: 'targetElementType',
+    name: 'targetElementType',
+    options: typeOptions,
+    value: field.targetElementType,
+    required: true,
+    toggle: true,
+    targetPrefix: 'curate-sources-',
+}) }}
+
+{% set selectedSources = field.sources is iterable ? field.sources : [] %}
+
+{% for class, options in sourcesByType %}
+    {% set wrapperId = 'curate-sources-' ~ (class|replace({'\\': '-'})) %}
+    <div id="{{ wrapperId }}" class="curate-sources field"
+         data-element-type="{{ class }}"
+         {% if field.targetElementType != class %}style="display:none"{% endif %}>
+
+        <div class="heading">
+            <label>{{ "Sources"|t('curate') }}</label>
+            <div class="instructions">
+                <p>{{ "Limit the picker to elements from these sources. Leave all unchecked for any source."|t('curate') }}</p>
+            </div>
+        </div>
+
+        <div class="input">
+            {% if options is empty %}
+                <p class="light">{{ "No sources defined for this element type yet."|t('curate') }}</p>
+            {% else %}
+                {% for option in options %}
+                    {% set checked = option.value in selectedSources %}
+                    {% set active = field.targetElementType == class %}
+                    <div>
+                        <label>
+                            <input type="checkbox"
+                                   name="sources[]"
+                                   value="{{ option.value }}"
+                                   {% if checked %}checked{% endif %}
+                                   {% if not active %}disabled{% endif %}>
+                            {{ option.label }}
+                        </label>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+{% endfor %}
+
+{# Native Craft `toggle` on the select handles show/hide, but it #}
+{# doesn't disable inputs in hidden wrappers — handle that here so the #}
+{# form only submits sources for the selected type. #}
+{% js %}
+(function() {
+    var typeSelect = document.getElementById('{{ "targetElementType"|namespaceInputId }}');
+    if (!typeSelect) return;
+    function sync() {
+        document.querySelectorAll('.curate-sources').forEach(function(wrapper) {
+            var active = wrapper.dataset.elementType === typeSelect.value;
+            wrapper.querySelectorAll('input[type=checkbox]').forEach(function(input) {
+                input.disabled = !active;
+                if (!active) input.checked = false;
+            });
+        });
+    }
+    typeSelect.addEventListener('change', sync);
+    sync();
+})();
+{% endjs %}

@@ -1,0 +1,42 @@
+{
+  "name": "bymayo/curate",
+  "description": "Per-parent manual sort order for related elements in Craft CMS — let editors curate the order of products in a category, entries in a section, anything in anything.",
+  "type": "craft-plugin",
+  "version": "1.0.0",
+  "license": "mit",
+  "support": {
+    "email": "jason@bymayo.co.uk",
+    "issues": "https://github.com/bymayo/craft-curate/issues?state=open",
+    "source": "https://github.com/bymayo/craft-curate",
+    "docs": "https://github.com/bymayo/craft-curate",
+    "rss": "https://github.com/bymayo/craft-curate/releases.atom"
+  },
+  "require": {
+    "php": ">=8.2",
+    "craftcms/cms": "^5.7.0"
+  },
+  "require-dev": {
+    "craftcms/phpstan": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "bymayo\\curate\\": "src/"
+    }
+  },
+  "extra": {
+    "handle": "curate",
+    "name": "Curate",
+    "developer": "Jason Mayo",
+    "documentationUrl": "https://github.com/bymayo/craft-curate"
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.2"
+    },
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true,
+      "craftcms/plugin-installer": true
+    }
+  }
+}
