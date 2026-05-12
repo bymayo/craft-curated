@@ -16,3 +16,13 @@
     rows: 3,
     disabled: config.editorNotice is defined,
 }) }}
+
+{{ forms.lightswitchField({
+    label: "Fully remove on delete"|t('curated'),
+    instructions: "Also deletes the underlying relation. No undo."|t('curated'),
+    warning: "Removing an item edits the canonical relation, not just this field."|t('curated'),
+    id: 'removeNativeRelations',
+    name: 'removeNativeRelations',
+    on: settings.removeNativeRelations,
+    disabled: config.removeNativeRelations is defined,
+}) }}

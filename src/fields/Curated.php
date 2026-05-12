@@ -574,7 +574,27 @@ CSS);
         };
 
         if ($ids !== null) {
-            Plugin::getInstance()->curated->saveOrder(
+            $service = Plugin::getInstance()->curated;
+
+            // If the "remove native relations" setting is on, find chips that
+            // dropped out of the curated order on this save and delete the
+            // matching native relation rows. Auto-discovery picks them up
+            // again otherwise.
+            if (Plugin::getInstance()->getSettings()->removeNativeRelations) {
+                $previousIds = array_map('intval', $service->getTargetIds(
+                    $this->id,
+                    $element->id,
+                    $element->siteId
+                ));
+                $previousMerged = $service->getMergedTargetIds($this, $element);
+                $beforeIds = array_unique(array_merge($previousIds, $previousMerged));
+                $removed = array_diff($beforeIds, $ids);
+                foreach ($removed as $targetId) {
+                    $service->deleteNativeRelations((int)$element->id, (int)$targetId);
+                }
+            }
+
+            $service->saveOrder(
                 $this->id,
                 $element->id,
                 $element->siteId,

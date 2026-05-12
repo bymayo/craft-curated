@@ -59,6 +59,9 @@ return [
     'Notice' => 'Notice',
     'Subtle help text rendered below every Curated field input. Leave blank to hide.' => 'Subtle help text rendered below every Curated field input. Leave blank to hide.',
     'Auto-populated from related items. Drag to reorder, or use the menu on each item for quick moves.' => 'Auto-populated from related items. Drag to reorder, or use the menu on each item for quick moves.',
+    'Fully remove on delete' => 'Fully remove on delete',
+    'Also deletes the underlying relation. No undo.' => 'Also deletes the underlying relation. No undo.',
+    'Removing an item edits the canonical relation, not just this field.' => 'Removing an item edits the canonical relation, not just this field.',
 
     // Curated Sync utility
     'Curated Sync' => 'Curated Sync',

@@ -16,6 +16,14 @@ class Settings extends Model
      */
     public string $editorNotice = '';
 
+    /**
+     * When true, removing a chip from a Curated field also deletes the
+     * underlying native relation rows between parent and target on save.
+     * Destructive: edits the other side of the relation, any direction,
+     * any relation field. Off by default.
+     */
+    public bool $removeNativeRelations = false;
+
     public function init(): void
     {
         parent::init();
@@ -28,6 +36,7 @@ class Settings extends Model
     {
         return [
             [['editorNotice'], 'string'],
+            [['removeNativeRelations'], 'boolean'],
         ];
     }
 }

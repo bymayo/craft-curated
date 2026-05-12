@@ -100,18 +100,6 @@ Both surface in the Curated field. The displayed list is `[saved curated order] 
 
 **Utilities → Curated Sync** (and `php craft curated/sync`) snapshots currently-related elements into explicit curated order. Optional; auto-discovery already shows them.
 
-## Order of operations
-
-| Action | What it does |
-|---|---|
-| Drag a chip | Rearranges DOM. Persists on save. |
-| Move up / Move down | Single-step move. Persists on save. |
-| Move to top / bottom / position… | Big-step move. Persists on save. |
-| Sort by… dropdown | Confirms, then reorders the whole list. Persists on save. |
-| Removing a chip | Drops it from `curated_relations` on save. Reappears at the end if the native relation still exists. |
-
-Whatever's in the picker when you save **is** the new curated order. Default Placement only governs how brand-new natives show up.
-
 ## Supported element types
 
 | Element type | Common use case |
@@ -125,14 +113,15 @@ Whatever's in the picker when you save **is** the new curated order. Default Pla
 
 Commerce types appear when Craft Commerce is installed. Each type narrows by its native source (Sections for Entries, Groups for Categories, Volumes for Assets, Product Types for Products).
 
-## Caveats
+## Warnings
 
 1. **Curated sits alongside native relations.** Keep the canonical relation where Craft expects it; use Curated on the parent for order.
-2. **Removing a natively-related chip is soft.** It reappears at the end on next render because the native relation still exists. To remove for good, remove the native relation.
-3. **Curated writes content, not Project Config.** Field settings sync via project config; the order itself lives in `curated_relations` and doesn't.
-4. **Large lists.** The drag UI is good for hundreds of items, not tens of thousands.
+2. **Removing an item is soft by default.** It drops out of the saved curated order, but reappears at the end on next render because the native relation still exists. To remove for good, also remove the native relation. Or enable the **Fully remove on delete** plugin setting below.
+3. **Fully remove on delete (plugin setting) is destructive.** When on, removing an item from a Curated field also deletes every native relation row between the two elements, in both directions, across any relation field. There's no undo. Editors removing items here will silently edit the canonical relation elsewhere in Craft, not just this field. Off by default for a reason.
+4. **Curated writes content, not Project Config.** Field settings sync via project config; the curated order itself lives in `curated_relations` and won't sync between environments.
+5. **Large lists.** The drag UI is good for hundreds of items, not tens of thousands. See the `max_input_vars` note below if you expect 1000+ chips per field.
 
-When an element is deleted, it's removed from every curated list automatically.
+When an element is deleted entirely, it's removed from every curated list automatically.
 
 ### `max_input_vars` and big lists
 

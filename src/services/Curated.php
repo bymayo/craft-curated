@@ -313,6 +313,23 @@ class Curated extends Component
     }
 
     /**
+     * Delete every native relation row between $parentId and $targetId, in
+     * either direction, regardless of which relation field created it.
+     * Used when the `removeNativeRelations` setting is on and an editor
+     * removes a chip from a Curated field.
+     */
+    public function deleteNativeRelations(int $parentId, int $targetId): void
+    {
+        Craft::$app->getDb()->createCommand()
+            ->delete('{{%relations}}', [
+                'or',
+                ['and', ['sourceId' => $parentId, 'targetId' => $targetId]],
+                ['and', ['sourceId' => $targetId, 'targetId' => $parentId]],
+            ])
+            ->execute();
+    }
+
+    /**
      * Snapshot any natively-related elements into the curated order so they
      * get explicit positions. Items already in the curated list are left
      * alone — re-running is safe.
