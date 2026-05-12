@@ -49,14 +49,17 @@ class Curated extends Component
         $native = $this->getNativeRelatedIds($field, $parent);
 
         $seen = array_flip($curated);
-        $merged = $curated;
+        $newNatives = [];
         foreach ($native as $id) {
             if (!isset($seen[$id])) {
-                $merged[] = $id;
+                $newNatives[] = $id;
                 $seen[$id] = true;
             }
         }
-        return $merged;
+
+        return $field->initialSort === CuratedField::SORT_PLACE_AT_TOP
+            ? array_merge($newNatives, $curated)
+            : array_merge($curated, $newNatives);
     }
 
     /**
@@ -80,6 +83,49 @@ class Curated extends Component
         $this->applyInitialSort($query, $field->initialSort);
 
         return array_map('intval', $query->ids());
+    }
+
+    /**
+     * One-shot sort for the editor's inline "Sort by" control. Returns the
+     * given IDs reordered per the chosen sort key. Items whose target row
+     * can't be resolved (deleted, soft-deleted, etc.) get appended in their
+     * original position at the end, so a Sort never silently drops chips.
+     *
+     * @param int[] $ids
+     * @return int[]
+     */
+    public function sortIds(CuratedField $field, ?ElementInterface $parent, string $sortKey, array $ids): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) {
+            return [];
+        }
+
+        $targetClass = $field->targetElementType;
+        if (!$targetClass || !class_exists($targetClass)) {
+            return $ids;
+        }
+
+        /** @var class-string<ElementInterface> $targetClass */
+        $query = $targetClass::find()
+            ->status(null)
+            ->siteId($parent?->siteId ?? '*')
+            ->id($ids);
+
+        $this->applyInitialSort($query, $sortKey);
+
+        $sorted = array_map('intval', $query->ids());
+
+        // Re-append any IDs missing from the query result, preserving caller order.
+        $seen = array_flip($sorted);
+        foreach ($ids as $id) {
+            if (!isset($seen[$id])) {
+                $sorted[] = $id;
+                $seen[$id] = true;
+            }
+        }
+
+        return $sorted;
     }
 
     private function applyInitialSort(\craft\elements\db\ElementQuery $query, string $sort): void

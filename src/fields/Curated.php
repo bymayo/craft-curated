@@ -8,7 +8,6 @@ use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Cp;
-use craft\helpers\StringHelper;
 
 /**
  * Curated field
@@ -60,6 +59,7 @@ class Curated extends Field
     public string $initialSort = self::SORT_NONE;
 
     public const SORT_NONE = 'none';
+    public const SORT_PLACE_AT_TOP = 'placeAtTop';
     public const SORT_TITLE_ASC = 'titleAsc';
     public const SORT_TITLE_DESC = 'titleDesc';
     public const SORT_DATE_CREATED_DESC = 'dateCreatedDesc';
@@ -69,6 +69,7 @@ class Curated extends Field
 
     public const SORT_OPTIONS = [
         self::SORT_NONE,
+        self::SORT_PLACE_AT_TOP,
         self::SORT_TITLE_ASC,
         self::SORT_TITLE_DESC,
         self::SORT_DATE_CREATED_DESC,
@@ -145,11 +146,7 @@ class Curated extends Field
             ? $value->status(null)->all()
             : [];
 
-        $bundleId = 'curated-bundle-' . StringHelper::randomString(10);
-
-        // Register OUR JS first so the chip-menu patch is in place before
-        // the picker (registered next) initializes its chips.
-        $this->registerFieldJs($bundleId, $this->handle);
+        $this->registerFieldJs();
 
         $pickerHtml = Cp::elementSelectHtml([
             'name' => $this->handle,
@@ -159,53 +156,61 @@ class Curated extends Field
             'sortable' => true,
             'viewMode' => $this->viewMode,
             'showSiteMenu' => true,
-            // Marker on the picker's container itself so the chip-menu patch
-            // can detect this is a Curated field without depending on
-            // surrounding HTML being preserved by Craft's field rendering.
+            'fieldId' => $this->id,
+            // Marker on the picker's container so the chip-menu JS patch can
+            // detect this is a Curated field and only add its extra items
+            // here, not in other element pickers across the CP.
             'containerAttributes' => [
                 'data' => ['curated' => '1'],
             ],
         ]);
 
-        // Bundle every chip ID into a single JSON-encoded hidden input so we
-        // submit one input regardless of list size. Chips remain in the DOM
-        // (with name="<handle>[]") for the picker UI but get disabled by the
-        // JS below, so they don't count toward PHP's max_input_vars.
-        $initialIds = array_values(array_map(fn($e) => (int)$e->id, $elements));
-        $bundleValue = htmlspecialchars(json_encode($initialIds), ENT_QUOTES);
-        $handle = htmlspecialchars($this->handle, ENT_QUOTES);
+        return $this->renderSortToolbar($element) . $pickerHtml;
+    }
 
-        $bundleHtml = sprintf(
-            '<input type="hidden" name="%s" id="%s" value="%s">',
-            $handle,
-            htmlspecialchars($bundleId, ENT_QUOTES),
-            $bundleValue
-        );
+    private function renderSortToolbar(?ElementInterface $element): string
+    {
+        $fieldId = (int)($this->id ?? 0);
+        $sourceId = (int)($element?->id ?? 0);
+        $siteId = (int)($element?->siteId ?? 0);
 
-        // Marker on the wrapper so our chip-menu patch can detect Curated
-        // fields and only add its items there.
+        $selectHtml = Cp::selectHtml([
+            'inputAttributes' => [
+                'class' => 'curated-sort-select',
+            ],
+            'options' => [
+                ['value' => '', 'label' => Craft::t('curated', 'Sort by…')],
+                ['value' => self::SORT_TITLE_ASC, 'label' => Craft::t('curated', 'Title (A–Z)')],
+                ['value' => self::SORT_TITLE_DESC, 'label' => Craft::t('curated', 'Title (Z–A)')],
+                ['value' => self::SORT_DATE_CREATED_DESC, 'label' => Craft::t('curated', 'Date created (newest first)')],
+                ['value' => self::SORT_DATE_CREATED_ASC, 'label' => Craft::t('curated', 'Date created (oldest first)')],
+                ['value' => self::SORT_DATE_UPDATED_DESC, 'label' => Craft::t('curated', 'Date updated (newest first)')],
+                ['value' => self::SORT_RANDOM, 'label' => Craft::t('curated', 'Random')],
+            ],
+            'value' => '',
+        ]);
+
         return sprintf(
-            '<div class="curated-field-wrapper" data-curated="1">%s%s</div>',
-            $pickerHtml,
-            $bundleHtml
+            '<div class="curated-sort-toolbar" data-field-id="%d" data-source-id="%d" data-site-id="%d">%s</div>',
+            $fieldId,
+            $sourceId,
+            $siteId,
+            $selectHtml
         );
     }
 
     /**
-     * Wires up two pieces of behavior on the picker:
-     *   1. Bundle chip IDs into the JSON hidden input on every change, so we
-     *      submit a single input regardless of size (sidesteps max_input_vars).
-     *   2. Patch Craft's element-select chip menu to add Move to top / bottom /
-     *      position N alongside Craft's native Move up / Move down.
+     * Adds Move to top / bottom / position N to each chip's action menu in
+     * a Curated picker, alongside Craft's native Move up / Move down.
      */
-    private function registerFieldJs(string $bundleId, string $handle): void
+    private function registerFieldJs(): void
     {
-        $jsHandle = json_encode($handle);
-        $jsBundleId = json_encode($bundleId);
         $labelTop = json_encode(Craft::t('curated', 'Move to top'));
         $labelBottom = json_encode(Craft::t('curated', 'Move to bottom'));
         $labelPosition = json_encode(Craft::t('curated', 'Move to position…'));
         $labelPrompt = json_encode(Craft::t('curated', 'Move to position (1 to {total}):'));
+        $labelSortConfirm = json_encode(Craft::t('curated', 'Overwrite the current order?'));
+        $sortActionUrl = json_encode(\craft\helpers\UrlHelper::actionUrl('curated/sort/run'));
 
         $js = <<<JS
 (function() {
@@ -255,9 +260,8 @@ class Curated extends Field
         }];
     }
 
-    // Patch defineElementActions for any chips added LATER (e.g. via the
-    // "Add an element" button), so the patched method is in place once
-    // picker.addElements() runs for them.
+    // Patch defineElementActions so any chips added later (via "Add an
+    // element") get our extra items when their menu is built.
     if (typeof Craft !== 'undefined' && Craft.BaseElementSelectInput && !Craft.BaseElementSelectInput.prototype._curatedPatched) {
         Craft.BaseElementSelectInput.prototype._curatedPatched = true;
         var orig = Craft.BaseElementSelectInput.prototype.defineElementActions;
@@ -270,9 +274,9 @@ class Curated extends Field
         };
     }
 
-    // Safety net: for chips whose menus were ALREADY built before the patch
-    // landed (or who were rendered server-side), add our items via a fresh
-    // addActionsToChip call. Defer past picker init via setTimeout(0).
+    // Safety net: for chips whose menus were already built before the patch
+    // landed, append our items via a fresh addActionsToChip call. Deferred
+    // past picker init via setTimeout(0).
     setTimeout(function() {
         if (typeof Craft === 'undefined' || typeof Craft.addActionsToChip !== 'function') return;
         jQuery('.elementselect[data-curated]').each(function() {
@@ -288,35 +292,71 @@ class Curated extends Field
         });
     }, 0);
 
-    // Bundle chip IDs into the JSON hidden input so we submit a single input
-    // (sidesteps PHP's max_input_vars on large lists).
-    var bundle = document.getElementById({$jsBundleId});
-    if (!bundle) return;
-    var wrapper = bundle.parentNode;
-    if (!wrapper) return;
-    var handle = {$jsHandle};
-    var chipInputSelector = 'input[type="hidden"][name\$="' + handle + '[]"]';
+    // Inline "Sort by…" select — one-shot resort of the displayed chips.
+    // Confirms before applying so a misclick doesn't nuke a manual order.
+    jQuery(document).off('change.curatedSort').on('change.curatedSort', '.curated-sort-select', function() {
+        var \$select = jQuery(this);
+        var sortKey = \$select.val();
+        if (!sortKey) return;
+        \$select.val('');
 
-    function sync() {
-        var inputs = wrapper.querySelectorAll(chipInputSelector);
+        if (!window.confirm({$labelSortConfirm})) return;
+
+        var \$toolbar = \$select.closest('.curated-sort-toolbar');
+        var fieldId = \$toolbar.data('field-id');
+        var sourceId = \$toolbar.data('source-id');
+        var siteId = \$toolbar.data('site-id');
+
+        var \$picker = \$toolbar.nextAll('.elementselect[data-curated]').first();
+        if (!\$picker.length) {
+            jQuery('.elementselect[data-curated]').each(function() {
+                var p = jQuery(this).data('elementSelect');
+                if (p && p.settings && String(p.settings.fieldId) === String(fieldId)) {
+                    \$picker = jQuery(this);
+                    return false;
+                }
+            });
+        }
+        if (!\$picker.length) return;
+        var picker = \$picker.data('elementSelect');
+        if (!picker) return;
+
         var ids = [];
-        inputs.forEach(function(input) {
-            input.disabled = true;
-            if (input.value) ids.push(input.value);
+        picker.\$elementsContainer.find('> li').each(function() {
+            var id = jQuery(this).find('> .element, > .chip').data('id');
+            if (id) ids.push(id);
         });
-        bundle.value = JSON.stringify(ids);
-    }
+        if (!ids.length) return;
 
-    new MutationObserver(sync).observe(wrapper, {
-        childList: true,
-        subtree: true,
-        attributes: true,
+        var data = {
+            fieldId: fieldId,
+            sourceId: sourceId,
+            siteId: siteId,
+            sortKey: sortKey,
+            ids: ids,
+        };
+        data[Craft.csrfTokenName] = Craft.csrfTokenValue;
+
+        jQuery.post({$sortActionUrl}, data, function(response) {
+            if (!response || !response.ids) return;
+            response.ids.forEach(function(id) {
+                var \$li = picker.\$elementsContainer.find('> li').filter(function() {
+                    return jQuery(this).find('> .element, > .chip').data('id') == id;
+                });
+                if (\$li.length) picker.\$elementsContainer.append(\$li);
+            });
+            picker.onSortChange();
+        }, 'json');
     });
-    sync();
 })();
 JS;
 
         Craft::$app->getView()->registerJs($js);
+        Craft::$app->getView()->registerCss(<<<CSS
+.curated-sort-toolbar {
+    margin-bottom: 14px;
+}
+CSS);
     }
 
     public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed
@@ -416,15 +456,6 @@ JS;
     private function resolveIds(mixed $value, ?ElementInterface $element): array
     {
         if (is_string($value)) {
-            $trimmed = trim($value);
-            // Bundled JSON from getInputHtml's hidden input.
-            if ($trimmed !== '' && $trimmed[0] === '[') {
-                $decoded = json_decode($trimmed, true);
-                if (is_array($decoded)) {
-                    return array_values(array_filter(array_map('intval', $decoded)));
-                }
-            }
-            // Legacy comma-separated form.
             return array_values(array_filter(array_map('intval', explode(',', $value))));
         }
         if (is_array($value)) {

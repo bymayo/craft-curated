@@ -13,12 +13,13 @@
 }) }}
 
 {{ forms.selectField({
-    label: "Initial sort"|t('curated'),
-    instructions: "How to order auto-discovered relations that haven't been curated yet. Items you've explicitly dragged keep their saved position regardless."|t('curated'),
+    label: "Default Placement"|t('curated'),
+    instructions: "Where auto-discovered relations are placed before they're explicitly ordered. Items you've dragged keep their saved position regardless."|t('curated'),
     id: 'initialSort',
     name: 'initialSort',
     options: [
-        { value: 'none', label: 'None — place at bottom'|t('curated') },
+        { value: 'none', label: 'After other elements'|t('curated') },
+        { value: 'placeAtTop', label: 'Before other elements'|t('curated') },
         { value: 'titleAsc', label: 'Title (A–Z)'|t('curated') },
         { value: 'titleDesc', label: 'Title (Z–A)'|t('curated') },
         { value: 'dateCreatedDesc', label: 'Date created (newest first)'|t('curated') },

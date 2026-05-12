@@ -14,12 +14,11 @@ Curated stores per-parent order in its own join table, so every Category (or any
 
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
 - **Auto-discovery** — every native relation between the parent and an element of the chosen type surfaces in the field, in either direction, with no configuration
-- **Initial sort** — field setting for how auto-discovered items appear before they're explicitly ordered: title, date created, date updated, random, or "place at bottom"
+- **Default Placement** — field setting that mirrors Craft's "Default Entry Placement" pattern: place auto-discovered relations before or after other elements, or sort by title / date created / date updated / random
 - **Quick reorder actions** — every chip gets Move to top, Move to bottom, Move up, Move down, Move to position N right inside its native action menu, so editors can wrangle long lists without dragging
 - **One field, six element types** — Entries, Categories, Assets, Users, and (when Commerce is installed) Products & Variants; narrow by source (Section, Group, Volume, Product Type, …) at field config time
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
 - **Per-site ordering** — different order per site if you want it
-- **Scales to large lists** — chip submissions bundled into a single input so PHP's `max_input_vars` is never the bottleneck
 
 ## How Curated compares
 
@@ -159,12 +158,37 @@ Drag-to-reorder is fine for short lists, but it's painful when you've got 200 pr
 
 These items appear inside the chip's existing action menu next to Replace / Remove, so there's no extra UI to learn — they live where editors already look for chip actions. They show up only on Curated fields (no leakage into other Entries / Categories / Assets fields), and only when the field is sortable.
 
-### Designed for big lists
+### One-shot Sort
 
-Curated's whole motivation is per-parent ordering — which means lists *will* get long. Two infrastructure pieces back this up:
+Above every Curated field there's a **Sort by…** dropdown for editors. Picking an option:
 
-- **`max_input_vars` safe**. Chip IDs are bundled into a single JSON-encoded hidden input at submit time. PHP only ever sees one input per Curated field, no matter how many chips it holds, so the default `max_input_vars=1000` is never the bottleneck.
-- **Initial sort**. New natively-related elements don't have to land at the end in insertion order — pick a default sort (title, date created, date updated, random, or none) so editors start from a sensible baseline before they curate.
+1. Pops a confirmation ("Sort the entire list by this rule? This will overwrite your current order.") so a misclick doesn't nuke a manual order.
+2. On confirm, the currently-displayed chips are reordered to the chosen sort (title, date created, date updated, random).
+3. The dropdown resets to "Sort by…" — it's an action, not a stored preference.
+
+The new order persists when the editor saves the parent. From then on, drag, Move to top/bottom, and individual moves apply to the new order as the baseline.
+
+## Order of operations
+
+When the Curated field renders, the list you see is built in this order:
+
+1. **Curated rows (saved order).** Whatever's in `curated_relations` for this `(field, parent, site)` comes first, in the order it was saved.
+2. **Auto-discovered natives.** Any element of the configured target type that has a native relation to this parent (in either direction, via any field) but isn't yet in `curated_relations` is appended.
+3. **Default Placement** governs where those new auto-discovered natives sit relative to the curated rows — "After other elements" (default) puts them at the end, "Before other elements" puts them at the start, the title/date sort options order them among themselves.
+
+When the editor saves the parent, **the displayed order is written to `curated_relations`**. So after the first save, the previously-auto-discovered natives are now persisted in `curated_relations` and become part of step 1 next time. New natives created in the future get the Default Placement treatment.
+
+Editor actions and how they interact:
+
+| Action | What it does |
+|---|---|
+| Drag a chip | Rearranges DOM. Persists on save. |
+| **Move up** / **Move down** | Single-step DOM move. Persists on save. |
+| **Move to top** / **Move to bottom** / **Move to position…** | Big-step DOM move. Persists on save. |
+| **Sort by…** dropdown | Confirms, then reorders the entire displayed list. Persists on save. |
+| Removing a chip | Drops it from `curated_relations` on save. If the underlying native relation still exists, it'll reappear at the end (Default Placement) on next render. |
+
+So the rule is: whatever's in the picker when you save **is** the new curated order. Default Placement only governs how brand-new natives — those Curated doesn't know about yet — show up.
 
 ## Supported element types
 
@@ -193,11 +217,9 @@ When an element is deleted, it's removed from every curated list automatically s
 
 ### `max_input_vars` and big lists
 
-PHP's `max_input_vars` (default `1000`) caps the number of form inputs a request can contain. Craft's native element picker — which this plugin uses for the chip UI — emits one hidden input per selected chip, so a Curated field with 1000+ items would normally lose items on save.
+PHP's `max_input_vars` (default `1000`) caps the number of form inputs a request can contain. Craft's native element picker — which this plugin uses for the chip UI — emits one hidden input per selected chip, so a Curated field holding more than ~1000 items will silently lose items on save unless you bump the limit.
 
-To avoid that, Curated bundles every chip ID into a single JSON-encoded hidden input at submit time (the original chip inputs are disabled by JS so they don't count). One input regardless of size — `max_input_vars` is not a factor.
-
-If you're still seeing issues — for example, a list so large that the JSON payload exceeds `post_max_size`, or JavaScript is disabled — raise the relevant PHP limits in `php.ini`:
+If you expect very long curated lists, raise the relevant PHP limits in `php.ini`:
 
 ```ini
 max_input_vars = 5000
