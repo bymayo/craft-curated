@@ -8,9 +8,9 @@ Craft can show you related elements, but can't reorder them when the relation li
 
 - **Categories with products**: reorder products per category, move popular items to the top.
 - **Editorial / blog landing pages**: "Related articles", "Editor's picks", "More from this author" in a deliberate sequence.
-- **Galleries / lookbooks**: drag Asset thumbnails into a hero-first order per Album.
-- **Staff / contributor pages**: order Users on a Team entry by seniority or department.
-- **Tag-driven feeds**: promote handpicked entries per tag, surface the rest automatically.
+- **Image galleries**: order images per Album, lead image first.
+- **Event lineups**: order speakers per conference, artists per festival, or sessions per day.
+- **Series and courses**: drag episodes into the right sequence per series, modules per course, or chapters per book.
 
 ## Features
 
