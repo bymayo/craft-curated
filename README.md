@@ -23,7 +23,7 @@ Curated stores per-parent order in its own join table, so every Category (or any
 
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
 - **Auto-discovery** — every native relation between the parent and an element of the chosen type surfaces in the field, in either direction, with no configuration
-- **Default Placement** — field setting that mirrors Craft's "Default Entry Placement" pattern: place auto-discovered relations before or after other elements, or sort by title / date created / date updated / random
+- **Default Placement** — field setting that mirrors Craft's "Default Entry Placement" pattern: place auto-discovered relations before or after other elements, or sort by title / date created / date updated / random (plus **price** when the target is a Commerce Product or Variant)
 - **Quick reorder actions** — every chip gets Move to top, Move to bottom, Move up, Move down, Move to position N right inside its native action menu, so editors can wrangle long lists without dragging
 - **One field, six element types** — Entries, Categories, Assets, Users, and (when Commerce is installed) Products & Variants; narrow by source (Section, Group, Volume, Product Type, …) at field config time
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
@@ -42,7 +42,7 @@ Several Craft plugins live in or near the "let editors control relations" space.
 | Per-site ordering                                       | ❌                             | inherits native    | inherits native    | ✅                            |
 | Auto-includes new relations created elsewhere           | ❌                             | ❌                 | ❌                 | ✅                            |
 | Quick reorder actions (Move to top / bottom / position) | ❌                             | ❌                 | ❌                 | ✅ on every chip's menu       |
-| Inline "Sort by…" reorder (title / date / random)       | ❌                             | ❌                 | ❌                 | ✅ one-shot from a dropdown   |
+| Inline "Sort by…" reorder (title / date / random / price) | ❌                             | ❌                 | ❌                 | ✅ one-shot from a dropdown   |
 | Default Placement for new relations                     | ❌                             | ❌                 | ❌                 | ✅ before / after / by sort   |
 | Customizable editor notice on the field                 | ❌                             | ❌                 | ❌                 | ✅ plugin setting             |
 
@@ -176,7 +176,7 @@ These items appear inside the chip's existing action menu next to Replace / Remo
 Above every Curated field there's a **Sort by…** dropdown for editors. Picking an option:
 
 1. Pops a confirmation ("Sort the entire list by this rule? This will overwrite your current order.") so a misclick doesn't nuke a manual order.
-2. On confirm, the currently-displayed chips are reordered to the chosen sort (title, date created, date updated, random).
+2. On confirm, the currently-displayed chips are reordered to the chosen sort (title, date created, date updated, random — plus **price** when the field targets a Commerce Product or Variant).
 3. The dropdown resets to "Sort by…" — it's an action, not a stored preference.
 
 The new order persists when the editor saves the parent. From then on, drag, Move to top/bottom, and individual moves apply to the new order as the baseline.

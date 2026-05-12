@@ -80,6 +80,8 @@ class Curated extends Field
     public const SORT_DATE_CREATED_ASC = 'dateCreatedAsc';
     public const SORT_DATE_UPDATED_DESC = 'dateUpdatedDesc';
     public const SORT_RANDOM = 'random';
+    public const SORT_PRICE_ASC = 'priceAsc';
+    public const SORT_PRICE_DESC = 'priceDesc';
 
     public const SORT_OPTIONS = [
         self::SORT_NONE,
@@ -90,7 +92,39 @@ class Curated extends Field
         self::SORT_DATE_CREATED_ASC,
         self::SORT_DATE_UPDATED_DESC,
         self::SORT_RANDOM,
+        self::SORT_PRICE_ASC,
+        self::SORT_PRICE_DESC,
     ];
+
+    /** Element classes that support price sort. */
+    private const PRICE_SORT_TYPES = [
+        'craft\\commerce\\elements\\Product',
+        'craft\\commerce\\elements\\Variant',
+    ];
+
+    private function supportsPriceSort(): bool
+    {
+        return in_array($this->targetElementType, self::PRICE_SORT_TYPES, true);
+    }
+
+    /**
+     * Default "Add" button label for the current target type. Mirrors what
+     * Craft's native relation fields return from their static
+     * `defaultSelectionLabel()` methods — using the same 'app' translation
+     * category so the strings come from Craft's existing translations.
+     */
+    private function defaultSelectionLabel(): string
+    {
+        return match ($this->targetElementType) {
+            'craft\\elements\\Asset' => Craft::t('app', 'Add an asset'),
+            'craft\\elements\\Category' => Craft::t('app', 'Add a category'),
+            'craft\\elements\\Entry' => Craft::t('app', 'Add an entry'),
+            'craft\\elements\\User' => Craft::t('app', 'Add a user'),
+            'craft\\commerce\\elements\\Product' => Craft::t('app', 'Add a product'),
+            'craft\\commerce\\elements\\Variant' => Craft::t('app', 'Add a variant'),
+            default => Craft::t('app', 'Choose'),
+        };
+    }
 
     public static function displayName(): string
     {
@@ -174,7 +208,35 @@ class Curated extends Field
             'elementTypes' => $this->elementTypeOptions(),
             'sourcesByType' => $this->sourcesByType(),
             'viewModePickerHtml' => $this->renderViewModePicker(),
+            'initialSortOptions' => $this->initialSortOptions(),
         ]);
+    }
+
+    /**
+     * Options for the Default Placement select. Price options are only
+     * included when the target is a Commerce Product or Variant.
+     *
+     * @return array<int,array{value:string,label:string}>
+     */
+    private function initialSortOptions(): array
+    {
+        $options = [
+            ['value' => self::SORT_NONE, 'label' => Craft::t('curated', 'After other elements')],
+            ['value' => self::SORT_PLACE_AT_TOP, 'label' => Craft::t('curated', 'Before other elements')],
+            ['value' => self::SORT_TITLE_ASC, 'label' => Craft::t('curated', 'Title (A–Z)')],
+            ['value' => self::SORT_TITLE_DESC, 'label' => Craft::t('curated', 'Title (Z–A)')],
+            ['value' => self::SORT_DATE_CREATED_DESC, 'label' => Craft::t('curated', 'Date created (newest first)')],
+            ['value' => self::SORT_DATE_CREATED_ASC, 'label' => Craft::t('curated', 'Date created (oldest first)')],
+            ['value' => self::SORT_DATE_UPDATED_DESC, 'label' => Craft::t('curated', 'Date updated (newest first)')],
+            ['value' => self::SORT_RANDOM, 'label' => Craft::t('curated', 'Random')],
+        ];
+
+        if ($this->supportsPriceSort()) {
+            $options[] = ['value' => self::SORT_PRICE_ASC, 'label' => Craft::t('curated', 'Price (low to high)')];
+            $options[] = ['value' => self::SORT_PRICE_DESC, 'label' => Craft::t('curated', 'Price (high to low)')];
+        }
+
+        return $options;
     }
 
     private function renderViewModePicker(): string
@@ -236,9 +298,9 @@ class Curated extends Field
             ],
         ];
 
-        if ($this->selectionLabel !== null && $this->selectionLabel !== '') {
-            $pickerConfig['selectionLabel'] = Craft::t('site', $this->selectionLabel);
-        }
+        $pickerConfig['selectionLabel'] = $this->selectionLabel !== null && $this->selectionLabel !== ''
+            ? Craft::t('site', $this->selectionLabel)
+            : $this->defaultSelectionLabel();
 
         $pickerHtml = Cp::elementSelectHtml($pickerConfig);
 
@@ -263,19 +325,26 @@ class Curated extends Field
         $sourceId = (int)($element?->id ?? 0);
         $siteId = (int)($element?->siteId ?? 0);
 
+        $options = [
+            ['value' => '', 'label' => Craft::t('curated', 'Sort by…')],
+            ['value' => self::SORT_TITLE_ASC, 'label' => Craft::t('curated', 'Title (A–Z)')],
+            ['value' => self::SORT_TITLE_DESC, 'label' => Craft::t('curated', 'Title (Z–A)')],
+            ['value' => self::SORT_DATE_CREATED_DESC, 'label' => Craft::t('curated', 'Date created (newest first)')],
+            ['value' => self::SORT_DATE_CREATED_ASC, 'label' => Craft::t('curated', 'Date created (oldest first)')],
+            ['value' => self::SORT_DATE_UPDATED_DESC, 'label' => Craft::t('curated', 'Date updated (newest first)')],
+            ['value' => self::SORT_RANDOM, 'label' => Craft::t('curated', 'Random')],
+        ];
+
+        if ($this->supportsPriceSort()) {
+            $options[] = ['value' => self::SORT_PRICE_ASC, 'label' => Craft::t('curated', 'Price (low to high)')];
+            $options[] = ['value' => self::SORT_PRICE_DESC, 'label' => Craft::t('curated', 'Price (high to low)')];
+        }
+
         $selectHtml = Cp::selectHtml([
             'inputAttributes' => [
                 'class' => 'curated-sort-select',
             ],
-            'options' => [
-                ['value' => '', 'label' => Craft::t('curated', 'Sort by…')],
-                ['value' => self::SORT_TITLE_ASC, 'label' => Craft::t('curated', 'Title (A–Z)')],
-                ['value' => self::SORT_TITLE_DESC, 'label' => Craft::t('curated', 'Title (Z–A)')],
-                ['value' => self::SORT_DATE_CREATED_DESC, 'label' => Craft::t('curated', 'Date created (newest first)')],
-                ['value' => self::SORT_DATE_CREATED_ASC, 'label' => Craft::t('curated', 'Date created (oldest first)')],
-                ['value' => self::SORT_DATE_UPDATED_DESC, 'label' => Craft::t('curated', 'Date updated (newest first)')],
-                ['value' => self::SORT_RANDOM, 'label' => Craft::t('curated', 'Random')],
-            ],
+            'options' => $options,
             'value' => '',
         ]);
 

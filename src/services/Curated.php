@@ -151,6 +151,21 @@ class Curated extends Component
                     Craft::$app->getDb()->getIsMysql() ? 'RAND()' : 'RANDOM()'
                 ));
                 break;
+            case CuratedField::SORT_PRICE_ASC:
+            case CuratedField::SORT_PRICE_DESC:
+                $direction = $sort === CuratedField::SORT_PRICE_ASC ? SORT_ASC : SORT_DESC;
+                // Variants sort by their own price column directly. Products
+                // sort by `defaultPrice`, which Commerce's ProductQuery
+                // resolves to the default variant's price via internal joins.
+                $productQuery = 'craft\\commerce\\elements\\db\\ProductQuery';
+                $variantQuery = 'craft\\commerce\\elements\\db\\VariantQuery';
+                if ($variantQuery && is_a($query, $variantQuery)) {
+                    $query->orderBy(['price' => $direction]);
+                } elseif ($productQuery && is_a($query, $productQuery)) {
+                    $query->orderBy(['defaultPrice' => $direction]);
+                }
+                // Other element types silently fall through — no price column.
+                break;
             case CuratedField::SORT_NONE:
             default:
                 // Default Craft ordering — typically insertion order.
