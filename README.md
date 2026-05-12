@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/bymayo/craft-curated/craft-5/src/icon.svg" width="60">
+<img src="https://raw.githubusercontent.com/bymayo/craft-curated/craft-5/resources/icon.png" width="60">
 
 # Curated for Craft CMS 5
 
