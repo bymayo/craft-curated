@@ -97,15 +97,9 @@ Both surface in the Curated field. The displayed list is `[saved curated order] 
 
 ### Sync utility
 
-Go to **Utilities → Curated Sync** in the CP and click **Sync now**. This snapshots every currently-related element into `curated_relations` so its position is explicit, persisted, and no longer dependent on Default Placement.
+Go to **Utilities → Curated Sync** in the CP and click **Sync now**.
 
-You don't need to run it for the field to work. Reach for it when you want to:
-
-- Lock in the existing order across all Curated fields after a migration or bulk import, so future native relations land at the bottom (or wherever Default Placement says) instead of mixing with established items.
-- Freeze the current view as a baseline before changing the Default Placement setting.
-- Reset to a known state after large data changes.
-
-It's idempotent. Items already in `curated_relations` aren't moved or duplicated.
+You don't need this for Curated fields to work, they populate themselves. Run it when you want to save the current order in one go, for example after importing a batch of entries or migrating content between environments. It's safe to re-run, nothing gets duplicated.
 
 ### Console command
 
