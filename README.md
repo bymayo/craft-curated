@@ -23,6 +23,7 @@ Craft can show you related elements, but can't reorder them when the relation li
 - **Six element types**: Entries, Categories, Assets, Users, Commerce Products and Variants. Narrow by source (Section, Group, Volume, Product Type).
 - **Native Twig**: `category.curatedProducts.all()` returns a chainable `ElementQuery`.
 - **Per-site ordering**: different order per site.
+- **Element-index column**: each Curated field is a column option on its host element's index. Shows the first curated item as a chip with a "+N" overflow for the rest, exactly like Craft's native relation field columns.
 
 ## How Curated compares
 

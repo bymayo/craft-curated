@@ -63,6 +63,9 @@ return [
     'Also deletes the underlying relation. No undo.' => 'Also deletes the underlying relation. No undo.',
     'Removing an item edits the canonical relation, not just this field.' => 'Removing an item edits the canonical relation, not just this field.',
 
+    // Element index column placeholder
+    'Curated {type}' => 'Curated {type}',
+
     // Curated Sync utility
     'Curated Sync' => 'Curated Sync',
     'Walks every Curated field that has a tracked relation field, finds every parent element using that field, and tops up the curated order with any missing related elements. Safe to re-run — already-curated items are left in place.' => 'Walks every Curated field that has a tracked relation field, finds every parent element using that field, and tops up the curated order with any missing related elements. Safe to re-run — already-curated items are left in place.',

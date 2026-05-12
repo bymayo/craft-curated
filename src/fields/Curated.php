@@ -6,6 +6,7 @@ use bymayo\curated\Plugin;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\base\PreviewableFieldInterface;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Cp;
 
@@ -24,7 +25,7 @@ use craft\helpers\Cp;
  *   {% set products = category.curatedProducts.all() %}
  *   {% set top3    = category.curatedProducts.limit(3).all() %}
  */
-class Curated extends Field
+class Curated extends Field implements PreviewableFieldInterface
 {
     /** Element types offered in the field config picker. Commerce types are optional. */
     private const SUPPORTED_TYPES = [
@@ -559,6 +560,38 @@ CSS);
         $query->fixedOrder = true;
         Plugin::getInstance()->curated->applySources($this, $query);
         return $query;
+    }
+
+    /**
+     * Element-index preview. Reuses Craft's own `Cp::elementPreviewHtml()`,
+     * which renders the first item as a chip and overflows the rest into a
+     * "+N" pill that pops a list on click — same behavior Craft's native
+     * relation field columns use.
+     */
+    public function getPreviewHtml(mixed $value, ElementInterface $element): string
+    {
+        if (!$value instanceof ElementQuery) {
+            return '';
+        }
+        $elements = $value->status(null)->all();
+        if (!$elements) {
+            return '';
+        }
+        return Cp::elementPreviewHtml($elements);
+    }
+
+    public function previewPlaceholderHtml(mixed $value, ?ElementInterface $element): string
+    {
+        $targetClass = $this->targetElementType;
+        if (!$targetClass || !class_exists($targetClass)) {
+            return '';
+        }
+        /** @var class-string<ElementInterface> $targetClass */
+        $mockup = new $targetClass();
+        $mockup->title = Craft::t('curated', 'Curated {type}', [
+            'type' => $targetClass::displayName(),
+        ]);
+        return Cp::chipHtml($mockup);
     }
 
     public function afterElementSave(ElementInterface $element, bool $isNew): void

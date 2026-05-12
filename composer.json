@@ -1,6 +1,7 @@
 {
   "name": "bymayo/curated",
-  "description": "Per-parent manual sort order for related elements in Craft CMS — let editors curate the order of products in a category, entries in a section, anything in anything.",
+  "description": "Manually order related elements per source in Craft CMS.",
+  "keywords": ["craftcms", "craft-plugin", "fields", "relations", "sort", "ordering", "curated"],
   "type": "craft-plugin",
   "version": "1.0.0",
   "license": "mit",

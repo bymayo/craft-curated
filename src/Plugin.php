@@ -115,5 +115,6 @@ class Plugin extends BasePlugin
                 Plugin::getInstance()->curated->removeTargetEverywhere($element->id);
             }
         );
+
     }
 }
