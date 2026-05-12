@@ -145,6 +145,12 @@ class Curated extends Field
             ? $value->status(null)->all()
             : [];
 
+        $bundleId = 'curated-bundle-' . StringHelper::randomString(10);
+
+        // Register OUR JS first so the chip-menu patch is in place before
+        // the picker (registered next) initializes its chips.
+        $this->registerFieldJs($bundleId, $this->handle);
+
         $pickerHtml = Cp::elementSelectHtml([
             'name' => $this->handle,
             'elementType' => $this->targetElementType,
@@ -153,13 +159,18 @@ class Curated extends Field
             'sortable' => true,
             'viewMode' => $this->viewMode,
             'showSiteMenu' => true,
+            // Marker on the picker's container itself so the chip-menu patch
+            // can detect this is a Curated field without depending on
+            // surrounding HTML being preserved by Craft's field rendering.
+            'containerAttributes' => [
+                'data' => ['curated' => '1'],
+            ],
         ]);
 
         // Bundle every chip ID into a single JSON-encoded hidden input so we
         // submit one input regardless of list size. Chips remain in the DOM
         // (with name="<handle>[]") for the picker UI but get disabled by the
         // JS below, so they don't count toward PHP's max_input_vars.
-        $bundleId = 'curated-bundle-' . StringHelper::randomString(10);
         $initialIds = array_values(array_map(fn($e) => (int)$e->id, $elements));
         $bundleValue = htmlspecialchars(json_encode($initialIds), ENT_QUOTES);
         $handle = htmlspecialchars($this->handle, ENT_QUOTES);
@@ -171,178 +182,120 @@ class Curated extends Field
             $bundleValue
         );
 
-        $this->registerFieldJs($bundleId, $this->handle);
-        $this->registerFieldCss();
-
-        return $pickerHtml . $bundleHtml;
+        // Marker on the wrapper so our chip-menu patch can detect Curated
+        // fields and only add its items there.
+        return sprintf(
+            '<div class="curated-field-wrapper" data-curated="1">%s%s</div>',
+            $pickerHtml,
+            $bundleHtml
+        );
     }
 
     /**
      * Wires up two pieces of behavior on the picker:
      *   1. Bundle chip IDs into the JSON hidden input on every change, so we
      *      submit a single input regardless of size (sidesteps max_input_vars).
-     *   2. Inject a quick-action menu on each chip with Move to Top / Bottom /
-     *      Position N — useful when drag-reorder is impractical on long lists.
+     *   2. Patch Craft's element-select chip menu to add Move to top / bottom /
+     *      position N alongside Craft's native Move up / Move down.
      */
     private function registerFieldJs(string $bundleId, string $handle): void
     {
         $jsHandle = json_encode($handle);
         $jsBundleId = json_encode($bundleId);
-        $labelHeader = json_encode(Craft::t('curated', 'Reorder'));
-        $labelUp = json_encode(Craft::t('curated', 'Move up'));
-        $labelDown = json_encode(Craft::t('curated', 'Move down'));
         $labelTop = json_encode(Craft::t('curated', 'Move to top'));
         $labelBottom = json_encode(Craft::t('curated', 'Move to bottom'));
         $labelPosition = json_encode(Craft::t('curated', 'Move to position…'));
-        $labelQuickReorder = json_encode(Craft::t('curated', 'Reorder'));
         $labelPrompt = json_encode(Craft::t('curated', 'Move to position (1 to {total}):'));
 
         $js = <<<JS
 (function() {
+    function makeExtraActions(\$element, picker) {
+        var container = picker.\$elementsContainer;
+        function \$li() { return \$element.closest('li'); }
+        return [{
+            icon: 'arrow-up-to-line',
+            label: {$labelTop},
+            callback: function() {
+                var \$row = \$li();
+                if (!\$row.length) return;
+                container.prepend(\$row);
+                picker.onSortChange();
+            },
+        }, {
+            icon: 'arrow-down-to-line',
+            label: {$labelBottom},
+            callback: function() {
+                var \$row = \$li();
+                if (!\$row.length) return;
+                container.append(\$row);
+                picker.onSortChange();
+            },
+        }, {
+            icon: 'list-ol',
+            label: {$labelPosition},
+            callback: function() {
+                var \$row = \$li();
+                if (!\$row.length) return;
+                var total = container.children('li').length;
+                var promptText = {$labelPrompt}.replace('{total}', total);
+                var input = window.prompt(promptText, '1');
+                if (input === null) return;
+                var pos = parseInt(input, 10);
+                if (isNaN(pos)) return;
+                pos = Math.max(1, Math.min(pos, total));
+                var others = container.children('li').not(\$row);
+                var idx = pos - 1;
+                if (idx >= others.length) {
+                    container.append(\$row);
+                } else {
+                    others.eq(idx).before(\$row);
+                }
+                picker.onSortChange();
+            },
+        }];
+    }
+
+    // Patch defineElementActions for any chips added LATER (e.g. via the
+    // "Add an element" button), so the patched method is in place once
+    // picker.addElements() runs for them.
+    if (typeof Craft !== 'undefined' && Craft.BaseElementSelectInput && !Craft.BaseElementSelectInput.prototype._curatedPatched) {
+        Craft.BaseElementSelectInput.prototype._curatedPatched = true;
+        var orig = Craft.BaseElementSelectInput.prototype.defineElementActions;
+        Craft.BaseElementSelectInput.prototype.defineElementActions = function(\$element) {
+            var actions = orig ? orig.call(this, \$element) : [];
+            if (!this.settings || !this.settings.sortable) return actions;
+            if (!this.\$container || !this.\$container.is('[data-curated]')) return actions;
+            \$element.data('curatedExtraAdded', true);
+            return actions.concat(makeExtraActions(\$element, this));
+        };
+    }
+
+    // Safety net: for chips whose menus were ALREADY built before the patch
+    // landed (or who were rendered server-side), add our items via a fresh
+    // addActionsToChip call. Defer past picker init via setTimeout(0).
+    setTimeout(function() {
+        if (typeof Craft === 'undefined' || typeof Craft.addActionsToChip !== 'function') return;
+        jQuery('.elementselect[data-curated]').each(function() {
+            var picker = jQuery(this).data('elementSelect');
+            if (!picker || !picker.settings || !picker.settings.sortable) return;
+            if (!picker.\$elements || !picker.\$elements.length) return;
+            picker.\$elements.each(function() {
+                var \$chip = jQuery(this);
+                if (\$chip.data('curatedExtraAdded')) return;
+                \$chip.data('curatedExtraAdded', true);
+                Craft.addActionsToChip(\$chip, makeExtraActions(\$chip, picker));
+            });
+        });
+    }, 0);
+
+    // Bundle chip IDs into the JSON hidden input so we submit a single input
+    // (sidesteps PHP's max_input_vars on large lists).
     var bundle = document.getElementById({$jsBundleId});
     if (!bundle) return;
     var wrapper = bundle.parentNode;
     if (!wrapper) return;
     var handle = {$jsHandle};
     var chipInputSelector = 'input[type="hidden"][name\$="' + handle + '[]"]';
-
-    function chipFor(input) {
-        return input.closest('.chip') || input.closest('.element') || input.parentElement;
-    }
-
-    function getChipsInOrder() {
-        var inputs = wrapper.querySelectorAll(chipInputSelector);
-        var chips = [];
-        inputs.forEach(function(input) {
-            var chip = chipFor(input);
-            if (chip && chips.indexOf(chip) === -1) chips.push(chip);
-        });
-        return chips;
-    }
-
-    function moveBy(chip, delta) {
-        var chips = getChipsInOrder();
-        var idx = chips.indexOf(chip);
-        if (idx === -1) return;
-        var target = idx + delta;
-        if (target < 0 || target >= chips.length) return;
-        var parent = chip.parentElement;
-        if (!parent) return;
-        if (delta > 0) {
-            parent.insertBefore(chip, chips[target].nextSibling);
-        } else {
-            parent.insertBefore(chip, chips[target]);
-        }
-    }
-    function moveToTop(chip) {
-        var chips = getChipsInOrder();
-        if (!chips.length) return;
-        chip.parentElement.insertBefore(chip, chips[0]);
-    }
-    function moveToBottom(chip) {
-        var chips = getChipsInOrder();
-        if (!chips.length) return;
-        chip.parentElement.appendChild(chip);
-    }
-    function moveToPosition(chip, pos) {
-        var chips = getChipsInOrder().filter(function(c) { return c !== chip; });
-        var index = Math.max(0, Math.min(pos - 1, chips.length));
-        var parent = chip.parentElement;
-        if (!parent) return;
-        if (index >= chips.length) {
-            parent.appendChild(chip);
-        } else {
-            parent.insertBefore(chip, chips[index]);
-        }
-    }
-
-    function closeAllMenus() {
-        wrapper.querySelectorAll('.curated-action-menu').forEach(function(m) {
-            m.style.display = 'none';
-        });
-    }
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.curated-action-toolbar') && !e.target.closest('.curated-action-menu')) {
-            closeAllMenus();
-        }
-    });
-
-    function buildMenu(chip) {
-        var menu = document.createElement('div');
-        menu.className = 'curated-action-menu';
-        menu.style.display = 'none';
-
-        var header = document.createElement('div');
-        header.className = 'curated-action-header';
-        header.textContent = {$labelHeader};
-        menu.appendChild(header);
-
-        function addItem(label, action) {
-            var item = document.createElement('button');
-            item.type = 'button';
-            item.className = 'curated-action-item';
-            item.textContent = label;
-            item.addEventListener('click', function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                closeAllMenus();
-                action();
-            });
-            menu.appendChild(item);
-        }
-
-        addItem({$labelTop}, function() { moveToTop(chip); });
-        addItem({$labelBottom}, function() { moveToBottom(chip); });
-        addItem({$labelPosition}, function() {
-            var total = getChipsInOrder().length;
-            var promptText = {$labelPrompt}.replace('{total}', total);
-            var input = window.prompt(promptText, '1');
-            if (input === null) return;
-            var pos = parseInt(input, 10);
-            if (!isNaN(pos)) moveToPosition(chip, pos);
-        });
-
-        return menu;
-    }
-
-    function makeBtn(label, glyph, onClick) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'curated-action-btn';
-        btn.innerHTML = glyph;
-        btn.title = label;
-        btn.setAttribute('aria-label', label);
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            onClick(e);
-        });
-        return btn;
-    }
-
-    function ensureActions(chip) {
-        if (chip.querySelector(':scope > .curated-action-toolbar')) return;
-
-        var toolbar = document.createElement('div');
-        toolbar.className = 'curated-action-toolbar';
-
-        var up = makeBtn({$labelUp}, '&uarr;', function() { moveBy(chip, -1); });
-        var down = makeBtn({$labelDown}, '&darr;', function() { moveBy(chip, 1); });
-
-        var menu = buildMenu(chip);
-        var more = makeBtn({$labelQuickReorder}, '&#x21C5;', function() {
-            var isOpen = menu.style.display === 'block';
-            closeAllMenus();
-            if (!isOpen) menu.style.display = 'block';
-        });
-
-        toolbar.appendChild(up);
-        toolbar.appendChild(down);
-        toolbar.appendChild(more);
-        chip.appendChild(toolbar);
-        chip.appendChild(menu);
-    }
 
     function sync() {
         var inputs = wrapper.querySelectorAll(chipInputSelector);
@@ -352,8 +305,6 @@ class Curated extends Field
             if (input.value) ids.push(input.value);
         });
         bundle.value = JSON.stringify(ids);
-
-        getChipsInOrder().forEach(ensureActions);
     }
 
     new MutationObserver(sync).observe(wrapper, {
@@ -366,100 +317,6 @@ class Curated extends Field
 JS;
 
         Craft::$app->getView()->registerJs($js);
-    }
-
-    private function registerFieldCss(): void
-    {
-        $css = <<<CSS
-.chip, .element {
-    position: relative;
-}
-.curated-action-toolbar {
-    display: inline-flex;
-    gap: 2px;
-    margin-right: 6px;
-    padding-right: 6px;
-    border-right: 1px solid var(--hairline-color, rgba(96, 125, 159, 0.25));
-    vertical-align: middle;
-}
-.chip > .curated-action-toolbar,
-.element > .curated-action-toolbar {
-    position: absolute;
-    top: 50%;
-    left: 4px;
-    transform: translateY(-50%);
-    margin-right: 0;
-    padding-right: 0;
-    border-right: 0;
-    background: var(--gray-050, rgba(255, 255, 255, 0.9));
-    border-radius: 4px;
-    padding: 2px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.curated-action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--text-color, inherit);
-    cursor: pointer;
-    opacity: 0.7;
-    font-size: 13px;
-    line-height: 1;
-    border-radius: 3px;
-}
-.curated-action-btn:hover,
-.curated-action-btn:focus {
-    opacity: 1;
-    background: rgba(0, 0, 0, 0.08);
-    outline: none;
-}
-.curated-action-menu {
-    position: absolute;
-    top: 100%;
-    left: 4px;
-    margin-top: 2px;
-    z-index: 100;
-    min-width: 180px;
-    background: var(--white, #fff);
-    border: 1px solid var(--hairline-color, rgba(96, 125, 159, 0.25));
-    border-radius: 4px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-    padding: 4px 0;
-}
-.curated-action-header {
-    padding: 6px 12px 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--medium-text-color, #687684);
-    border-bottom: 1px solid var(--hairline-color, rgba(0, 0, 0, 0.08));
-    margin-bottom: 4px;
-}
-.curated-action-item {
-    display: block;
-    width: 100%;
-    padding: 6px 12px;
-    border: 0;
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--text-color, inherit);
-}
-.curated-action-item:hover,
-.curated-action-item:focus {
-    background: var(--gray-100, rgba(0, 0, 0, 0.05));
-    outline: none;
-}
-CSS;
-
-        Craft::$app->getView()->registerCss($css);
     }
 
     public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed

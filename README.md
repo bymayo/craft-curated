@@ -15,7 +15,7 @@ Curated stores per-parent order in its own join table, so every Category (or any
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
 - **Auto-discovery** — every native relation between the parent and an element of the chosen type surfaces in the field, in either direction, with no configuration
 - **Initial sort** — field setting for how auto-discovered items appear before they're explicitly ordered: title, date created, date updated, random, or "place at bottom"
-- **Quick reorder** — per-chip "Move to top / bottom / position N" menu for long lists where drag is impractical
+- **Quick reorder actions** — every chip gets Move to top, Move to bottom, Move up, Move down, Move to position N right inside its native action menu, so editors can wrangle long lists without dragging
 - **One field, six element types** — Entries, Categories, Assets, Users, and (when Commerce is installed) Products & Variants; narrow by source (Section, Group, Volume, Product Type, …) at field config time
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
 - **Per-site ordering** — different order per site if you want it
@@ -147,6 +147,24 @@ The displayed list is `[curated order, in saved order] + [native relations not y
 ### Curated Sync utility (optional)
 
 There's also a **Utilities → Curated Sync** page (and a `php craft curated/sync` console command) that snapshots all currently-related elements into the explicit curated order. You usually don't need it — auto-discovery is already showing them — but it's useful if you want to lock in current positions so they don't move around when new natives are added.
+
+## Quick reorder actions
+
+Drag-to-reorder is fine for short lists, but it's painful when you've got 200 products in a category and the one you want to feature is at the bottom. Curated extends Craft's native chip menu — the `⋯` button on each chip — with shortcuts editors can reach in a click or two:
+
+- **Move up** / **Move down** — single-step nudges (Craft provides these natively when the picker is sortable)
+- **Move to top** — promote a chip to position 1
+- **Move to bottom** — send to the end of the list
+- **Move to position…** — prompts for a position number and jumps straight there
+
+These items appear inside the chip's existing action menu next to Replace / Remove, so there's no extra UI to learn — they live where editors already look for chip actions. They show up only on Curated fields (no leakage into other Entries / Categories / Assets fields), and only when the field is sortable.
+
+### Designed for big lists
+
+Curated's whole motivation is per-parent ordering — which means lists *will* get long. Two infrastructure pieces back this up:
+
+- **`max_input_vars` safe**. Chip IDs are bundled into a single JSON-encoded hidden input at submit time. PHP only ever sees one input per Curated field, no matter how many chips it holds, so the default `max_input_vars=1000` is never the bottleneck.
+- **Initial sort**. New natively-related elements don't have to land at the end in insertion order — pick a default sort (title, date created, date updated, random, or none) so editors start from a sensible baseline before they curate.
 
 ## Supported element types
 
