@@ -13,11 +13,33 @@ Curated stores per-parent order in its own join table, so every Category (or any
 ## Features
 
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
-- **One field, any element type** — Entries, Categories, Assets, Users, Tags, Commerce Products, anything Craft knows about; pick the type *and* the sub-source (Section, Group, Volume, …) at field config time
+- **Auto-discovery** — every native relation between the parent and an element of the chosen type surfaces in the field, in either direction, with no configuration
+- **One field, six element types** — Entries, Categories, Assets, Users, and (when Commerce is installed) Products & Variants; narrow by source (Section, Group, Volume, Product Type, …) at field config time
 - **Curated field** — drop onto any element with a field layout
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
 - **Per-site ordering** — different order per site if you want it
-- **Settings via `config.php` or env vars**
+- **Scales to large lists** — chip submissions bundled into a single input so PHP's `max_input_vars` is never the bottleneck
+
+## How Curated compares
+
+Several Craft plugins live in or near the "let editors control relations" space. Each makes different trade-offs, and Curated is about **ordering**, not about establishing or proxying the relation itself.
+
+| Capability                                              | Plain Craft        | Many to Many       | Reverse Relations  | Curated                       |
+|---------------------------------------------------------|--------------------|--------------------|--------------------|-------------------------------|
+| Drag-reorder per parent                                 | ❌ shared sortOrder | ❌ uses native     | ❌ uses native     | ✅                            |
+| Same target at different positions in different parents | ❌                 | ❌                 | ❌                 | ✅                            |
+| Show relations created from the *other* side           | ❌                 | ✅ one configured field | ✅ one configured field | ✅ any field, either direction |
+| Field's picker writes a native relation                 | ✅                 | ✅ proxies         | varies             | ❌ — picker affects curated order only |
+| Per-site ordering                                       | n/a                | inherits native    | inherits native    | ✅                            |
+| Auto-includes new relations created elsewhere           | n/a                | ❌                 | ❌                 | ✅                            |
+
+**Different jobs, not direct replacements.** Many to Many and Reverse Relations focus on *editing the inverse side* of one specific relation field — a "this Category has these Entries" picker that writes to the Entries' Categories field. Curated focuses on *order*: it doesn't manage the underlying relation, it surfaces whatever is already related (any direction, any field) and lets editors drag them into per-parent order.
+
+Pick by use case:
+
+- **Set up relations from the "wrong" side of the field** → Many to Many or Reverse Relations.
+- **Order existing relations per parent, irrespective of which field created them** → Curated.
+- **Both** → use them together. Many to Many for editing, Curated on the parent for ordering.
 
 ## Install
 
