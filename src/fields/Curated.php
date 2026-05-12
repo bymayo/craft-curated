@@ -52,6 +52,31 @@ class Curated extends Field
     /** 'list' or 'large' — matches native Entries / Assets fields */
     public string $viewMode = 'list';
 
+    /**
+     * Initial ordering applied to auto-discovered native relations that
+     * aren't yet in the curated order. Once an editor drags, that order
+     * is persisted and this setting no longer applies to those items.
+     */
+    public string $initialSort = self::SORT_NONE;
+
+    public const SORT_NONE = 'none';
+    public const SORT_TITLE_ASC = 'titleAsc';
+    public const SORT_TITLE_DESC = 'titleDesc';
+    public const SORT_DATE_CREATED_DESC = 'dateCreatedDesc';
+    public const SORT_DATE_CREATED_ASC = 'dateCreatedAsc';
+    public const SORT_DATE_UPDATED_DESC = 'dateUpdatedDesc';
+    public const SORT_RANDOM = 'random';
+
+    public const SORT_OPTIONS = [
+        self::SORT_NONE,
+        self::SORT_TITLE_ASC,
+        self::SORT_TITLE_DESC,
+        self::SORT_DATE_CREATED_DESC,
+        self::SORT_DATE_CREATED_ASC,
+        self::SORT_DATE_UPDATED_DESC,
+        self::SORT_RANDOM,
+    ];
+
     public static function displayName(): string
     {
         return 'Curated';
@@ -73,6 +98,7 @@ class Curated extends Field
             [['targetElementType'], 'required'],
             [['targetElementType'], 'string'],
             [['viewMode'], 'in', 'range' => ['list', 'large']],
+            [['initialSort'], 'in', 'range' => self::SORT_OPTIONS],
             [['sources'], 'safe'],
         ]);
     }
@@ -145,19 +171,31 @@ class Curated extends Field
             $bundleValue
         );
 
-        $this->registerBundleJs($bundleId, $this->handle);
+        $this->registerFieldJs($bundleId, $this->handle);
+        $this->registerFieldCss();
 
         return $pickerHtml . $bundleHtml;
     }
 
     /**
-     * Bundles all chip inputs into a single JSON hidden input before submit,
-     * so large curated lists don't get clipped by PHP's max_input_vars.
+     * Wires up two pieces of behavior on the picker:
+     *   1. Bundle chip IDs into the JSON hidden input on every change, so we
+     *      submit a single input regardless of size (sidesteps max_input_vars).
+     *   2. Inject a quick-action menu on each chip with Move to Top / Bottom /
+     *      Position N — useful when drag-reorder is impractical on long lists.
      */
-    private function registerBundleJs(string $bundleId, string $handle): void
+    private function registerFieldJs(string $bundleId, string $handle): void
     {
         $jsHandle = json_encode($handle);
         $jsBundleId = json_encode($bundleId);
+        $labelHeader = json_encode(Craft::t('curated', 'Reorder'));
+        $labelUp = json_encode(Craft::t('curated', 'Move up'));
+        $labelDown = json_encode(Craft::t('curated', 'Move down'));
+        $labelTop = json_encode(Craft::t('curated', 'Move to top'));
+        $labelBottom = json_encode(Craft::t('curated', 'Move to bottom'));
+        $labelPosition = json_encode(Craft::t('curated', 'Move to position…'));
+        $labelQuickReorder = json_encode(Craft::t('curated', 'Reorder'));
+        $labelPrompt = json_encode(Craft::t('curated', 'Move to position (1 to {total}):'));
 
         $js = <<<JS
 (function() {
@@ -166,18 +204,156 @@ class Curated extends Field
     var wrapper = bundle.parentNode;
     if (!wrapper) return;
     var handle = {$jsHandle};
-    // Namespacing prefixes names but never appends, so the chip names always
-    // end with `<handle>[]`. The bundle input is excluded by `:not(#…)`.
-    var selector = 'input[type="hidden"][name\$="' + handle + '[]"]';
+    var chipInputSelector = 'input[type="hidden"][name\$="' + handle + '[]"]';
+
+    function chipFor(input) {
+        return input.closest('.chip') || input.closest('.element') || input.parentElement;
+    }
+
+    function getChipsInOrder() {
+        var inputs = wrapper.querySelectorAll(chipInputSelector);
+        var chips = [];
+        inputs.forEach(function(input) {
+            var chip = chipFor(input);
+            if (chip && chips.indexOf(chip) === -1) chips.push(chip);
+        });
+        return chips;
+    }
+
+    function moveBy(chip, delta) {
+        var chips = getChipsInOrder();
+        var idx = chips.indexOf(chip);
+        if (idx === -1) return;
+        var target = idx + delta;
+        if (target < 0 || target >= chips.length) return;
+        var parent = chip.parentElement;
+        if (!parent) return;
+        if (delta > 0) {
+            parent.insertBefore(chip, chips[target].nextSibling);
+        } else {
+            parent.insertBefore(chip, chips[target]);
+        }
+    }
+    function moveToTop(chip) {
+        var chips = getChipsInOrder();
+        if (!chips.length) return;
+        chip.parentElement.insertBefore(chip, chips[0]);
+    }
+    function moveToBottom(chip) {
+        var chips = getChipsInOrder();
+        if (!chips.length) return;
+        chip.parentElement.appendChild(chip);
+    }
+    function moveToPosition(chip, pos) {
+        var chips = getChipsInOrder().filter(function(c) { return c !== chip; });
+        var index = Math.max(0, Math.min(pos - 1, chips.length));
+        var parent = chip.parentElement;
+        if (!parent) return;
+        if (index >= chips.length) {
+            parent.appendChild(chip);
+        } else {
+            parent.insertBefore(chip, chips[index]);
+        }
+    }
+
+    function closeAllMenus() {
+        wrapper.querySelectorAll('.curated-action-menu').forEach(function(m) {
+            m.style.display = 'none';
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.curated-action-toolbar') && !e.target.closest('.curated-action-menu')) {
+            closeAllMenus();
+        }
+    });
+
+    function buildMenu(chip) {
+        var menu = document.createElement('div');
+        menu.className = 'curated-action-menu';
+        menu.style.display = 'none';
+
+        var header = document.createElement('div');
+        header.className = 'curated-action-header';
+        header.textContent = {$labelHeader};
+        menu.appendChild(header);
+
+        function addItem(label, action) {
+            var item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'curated-action-item';
+            item.textContent = label;
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                closeAllMenus();
+                action();
+            });
+            menu.appendChild(item);
+        }
+
+        addItem({$labelTop}, function() { moveToTop(chip); });
+        addItem({$labelBottom}, function() { moveToBottom(chip); });
+        addItem({$labelPosition}, function() {
+            var total = getChipsInOrder().length;
+            var promptText = {$labelPrompt}.replace('{total}', total);
+            var input = window.prompt(promptText, '1');
+            if (input === null) return;
+            var pos = parseInt(input, 10);
+            if (!isNaN(pos)) moveToPosition(chip, pos);
+        });
+
+        return menu;
+    }
+
+    function makeBtn(label, glyph, onClick) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'curated-action-btn';
+        btn.innerHTML = glyph;
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            onClick(e);
+        });
+        return btn;
+    }
+
+    function ensureActions(chip) {
+        if (chip.querySelector(':scope > .curated-action-toolbar')) return;
+
+        var toolbar = document.createElement('div');
+        toolbar.className = 'curated-action-toolbar';
+
+        var up = makeBtn({$labelUp}, '&uarr;', function() { moveBy(chip, -1); });
+        var down = makeBtn({$labelDown}, '&darr;', function() { moveBy(chip, 1); });
+
+        var menu = buildMenu(chip);
+        var more = makeBtn({$labelQuickReorder}, '&#x21C5;', function() {
+            var isOpen = menu.style.display === 'block';
+            closeAllMenus();
+            if (!isOpen) menu.style.display = 'block';
+        });
+
+        toolbar.appendChild(up);
+        toolbar.appendChild(down);
+        toolbar.appendChild(more);
+        chip.appendChild(toolbar);
+        chip.appendChild(menu);
+    }
 
     function sync() {
-        var inputs = wrapper.querySelectorAll(selector);
+        var inputs = wrapper.querySelectorAll(chipInputSelector);
         var ids = [];
         inputs.forEach(function(input) {
             input.disabled = true;
             if (input.value) ids.push(input.value);
         });
         bundle.value = JSON.stringify(ids);
+
+        getChipsInOrder().forEach(ensureActions);
     }
 
     new MutationObserver(sync).observe(wrapper, {
@@ -190,6 +366,100 @@ class Curated extends Field
 JS;
 
         Craft::$app->getView()->registerJs($js);
+    }
+
+    private function registerFieldCss(): void
+    {
+        $css = <<<CSS
+.chip, .element {
+    position: relative;
+}
+.curated-action-toolbar {
+    display: inline-flex;
+    gap: 2px;
+    margin-right: 6px;
+    padding-right: 6px;
+    border-right: 1px solid var(--hairline-color, rgba(96, 125, 159, 0.25));
+    vertical-align: middle;
+}
+.chip > .curated-action-toolbar,
+.element > .curated-action-toolbar {
+    position: absolute;
+    top: 50%;
+    left: 4px;
+    transform: translateY(-50%);
+    margin-right: 0;
+    padding-right: 0;
+    border-right: 0;
+    background: var(--gray-050, rgba(255, 255, 255, 0.9));
+    border-radius: 4px;
+    padding: 2px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.curated-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-color, inherit);
+    cursor: pointer;
+    opacity: 0.7;
+    font-size: 13px;
+    line-height: 1;
+    border-radius: 3px;
+}
+.curated-action-btn:hover,
+.curated-action-btn:focus {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.08);
+    outline: none;
+}
+.curated-action-menu {
+    position: absolute;
+    top: 100%;
+    left: 4px;
+    margin-top: 2px;
+    z-index: 100;
+    min-width: 180px;
+    background: var(--white, #fff);
+    border: 1px solid var(--hairline-color, rgba(96, 125, 159, 0.25));
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    padding: 4px 0;
+}
+.curated-action-header {
+    padding: 6px 12px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--medium-text-color, #687684);
+    border-bottom: 1px solid var(--hairline-color, rgba(0, 0, 0, 0.08));
+    margin-bottom: 4px;
+}
+.curated-action-item {
+    display: block;
+    width: 100%;
+    padding: 6px 12px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-color, inherit);
+}
+.curated-action-item:hover,
+.curated-action-item:focus {
+    background: var(--gray-100, rgba(0, 0, 0, 0.05));
+    outline: none;
+}
+CSS;
+
+        Craft::$app->getView()->registerCss($css);
     }
 
     public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed

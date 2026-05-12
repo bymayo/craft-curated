@@ -14,8 +14,9 @@ Curated stores per-parent order in its own join table, so every Category (or any
 
 - **Per-parent sort order** — the same Product can be #1 in *T-shirts* and #9 in *Sale*
 - **Auto-discovery** — every native relation between the parent and an element of the chosen type surfaces in the field, in either direction, with no configuration
+- **Initial sort** — field setting for how auto-discovered items appear before they're explicitly ordered: title, date created, date updated, random, or "place at bottom"
+- **Quick reorder** — per-chip "Move to top / bottom / position N" menu for long lists where drag is impractical
 - **One field, six element types** — Entries, Categories, Assets, Users, and (when Commerce is installed) Products & Variants; narrow by source (Section, Group, Volume, Product Type, …) at field config time
-- **Curated field** — drop onto any element with a field layout
 - **Native Twig access** — `category.curatedProducts.all()` returns an `ElementQuery`, fully chainable
 - **Per-site ordering** — different order per site if you want it
 - **Scales to large lists** — chip submissions bundled into a single input so PHP's `max_input_vars` is never the bottleneck

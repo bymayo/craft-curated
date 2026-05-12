@@ -61,7 +61,7 @@ class Curated extends Component
 
     /**
      * Every element of $field's target type that has any native relation to
-     * $parent, in either direction.
+     * $parent, in either direction. Honors the field's `initialSort`.
      *
      * @return int[]
      */
@@ -72,11 +72,44 @@ class Curated extends Component
             return [];
         }
         /** @var class-string<ElementInterface> $targetClass */
-        return array_map('intval', $targetClass::find()
+        $query = $targetClass::find()
             ->status(null)
             ->siteId($parent->siteId)
-            ->relatedTo($parent)
-            ->ids());
+            ->relatedTo($parent);
+
+        $this->applyInitialSort($query, $field->initialSort);
+
+        return array_map('intval', $query->ids());
+    }
+
+    private function applyInitialSort(\craft\elements\db\ElementQuery $query, string $sort): void
+    {
+        switch ($sort) {
+            case CuratedField::SORT_TITLE_ASC:
+                $query->orderBy(['title' => SORT_ASC]);
+                break;
+            case CuratedField::SORT_TITLE_DESC:
+                $query->orderBy(['title' => SORT_DESC]);
+                break;
+            case CuratedField::SORT_DATE_CREATED_DESC:
+                $query->orderBy(['dateCreated' => SORT_DESC]);
+                break;
+            case CuratedField::SORT_DATE_CREATED_ASC:
+                $query->orderBy(['dateCreated' => SORT_ASC]);
+                break;
+            case CuratedField::SORT_DATE_UPDATED_DESC:
+                $query->orderBy(['dateUpdated' => SORT_DESC]);
+                break;
+            case CuratedField::SORT_RANDOM:
+                $query->orderBy(new \yii\db\Expression(
+                    Craft::$app->getDb()->getIsMysql() ? 'RAND()' : 'RANDOM()'
+                ));
+                break;
+            case CuratedField::SORT_NONE:
+            default:
+                // Default Craft ordering — typically insertion order.
+                break;
+        }
     }
 
     /**

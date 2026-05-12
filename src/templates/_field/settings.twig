@@ -12,6 +12,23 @@
     value: field.viewMode,
 }) }}
 
+{{ forms.selectField({
+    label: "Initial sort"|t('curated'),
+    instructions: "How to order auto-discovered relations that haven't been curated yet. Items you've explicitly dragged keep their saved position regardless."|t('curated'),
+    id: 'initialSort',
+    name: 'initialSort',
+    options: [
+        { value: 'none', label: 'None — place at bottom'|t('curated') },
+        { value: 'titleAsc', label: 'Title (A–Z)'|t('curated') },
+        { value: 'titleDesc', label: 'Title (Z–A)'|t('curated') },
+        { value: 'dateCreatedDesc', label: 'Date created (newest first)'|t('curated') },
+        { value: 'dateCreatedAsc', label: 'Date created (oldest first)'|t('curated') },
+        { value: 'dateUpdatedDesc', label: 'Date updated (newest first)'|t('curated') },
+        { value: 'random', label: 'Random'|t('curated') },
+    ],
+    value: field.initialSort,
+}) }}
+
 {# Build the dropdown options: [class => label] → [{value, label}] #}
 {% set typeOptions = [] %}
 {% for class, label in elementTypes %}
