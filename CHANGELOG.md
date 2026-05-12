@@ -11,6 +11,7 @@
 - **Default Placement** field setting. Controls where auto-discovered relations land before they're explicitly curated. Before / after other elements, title A–Z / Z–A, date created (newest / oldest), date updated, random, plus **Price** (low / high) when the target is a Commerce Product or Variant.
 - **Quick reorder actions** in each chip's action menu. Move to top, Move to bottom, Move to position N, alongside Craft's native Move up / Move down.
 - **Inline "Sort by…" dropdown** above the picker. One-shot resort of the displayed list with a confirmation prompt to prevent misclicks.
+- **Inline search input** above the picker. Filters the displayed chips by label (client-side) for fields holding hundreds of items. Order is preserved; non-matching chips are hidden, not removed.
 - **Allow adding elements** field setting (off by default). Hides the picker's add button so the field stays in sync with native relations. Flip on to allow editors to add curated-only items.
 - **"Add" Button Label** field setting. Custom label for the picker's add button. Defaults to the target type's native label ("Add an entry", "Add a category", etc.).
 - **Fully remove on delete** plugin setting (off by default). When on, removing a chip also deletes the underlying native relation in both directions.

@@ -359,12 +359,18 @@ class Curated extends Field implements PreviewableFieldInterface
             'value' => '',
         ]);
 
+        $searchHtml = sprintf(
+            '<div class="texticon search icon clearable curated-search"><input type="search" class="text fullwidth curated-search-input" placeholder="%s" autocomplete="off"></div>',
+            htmlspecialchars(Craft::t('curated', 'Search'), ENT_QUOTES)
+        );
+
         return sprintf(
-            '<div class="curated-sort-toolbar" data-field-id="%d" data-source-id="%d" data-site-id="%d">%s</div>',
+            '<div class="curated-sort-toolbar" data-field-id="%d" data-source-id="%d" data-site-id="%d">%s%s</div>',
             $fieldId,
             $sourceId,
             $siteId,
-            $selectHtml
+            $selectHtml,
+            $searchHtml
         );
     }
 
@@ -517,13 +523,48 @@ class Curated extends Field implements PreviewableFieldInterface
             picker.onSortChange();
         }, 'json');
     });
+
+    // Client-side search filter on the picker. Matches against chips'
+    // `data-label` (set by Cp::baseElementAttributes) so it covers titles
+    // and any element with a UI label. Hides non-matches; order is preserved.
+    jQuery(document).off('input.curatedSearch').on('input.curatedSearch', '.curated-search-input', function() {
+        var query = (this.value || '').trim().toLowerCase();
+        var \$toolbar = jQuery(this).closest('.curated-sort-toolbar');
+        var fieldId = \$toolbar.data('field-id');
+
+        var \$picker = jQuery();
+        jQuery('.elementselect[data-curated]').each(function() {
+            var p = jQuery(this).data('elementSelect');
+            if (p && p.settings && String(p.settings.fieldId) === String(fieldId)) {
+                \$picker = jQuery(this);
+                return false;
+            }
+        });
+        if (!\$picker.length) return;
+
+        \$picker.find('> ul > li, > .elements > li').each(function() {
+            var \$li = jQuery(this);
+            var label = (\$li.find('[data-label]').attr('data-label') || '').toLowerCase();
+            \$li.toggle(query === '' || label.indexOf(query) !== -1);
+        });
+    });
 })();
 JS;
 
         Craft::$app->getView()->registerJs($js);
         Craft::$app->getView()->registerCss(<<<CSS
 .curated-sort-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 14px;
+}
+.curated-search {
+    flex: 1 1 240px;
+    min-width: 200px;
+    max-width: 320px;
+    margin: 0;
 }
 .curated-editor-notice {
     display: flex;

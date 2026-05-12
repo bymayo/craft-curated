@@ -19,6 +19,7 @@ Craft can show you related elements, but can't reorder them when the relation li
 - **Default Placement**: where auto-discovered relations land before they're explicitly ordered. Before or after other elements, title, date created/updated, random, plus **price** for Commerce Products and Variants.
 - **Quick reorder actions**: Move to top / bottom / position N inside each chip's menu, alongside Craft's Move up / Move down.
 - **One-shot Sort by…**: dropdown above the picker for resorting the whole list (title, date, random, price).
+- **Search**: live filter input above the picker. Hides non-matching chips while preserving order, for fields holding hundreds of items.
 - **Ordering-first by default**: the Add button is hidden; flip **Allow adding elements** on the field to enable curated-only additions.
 - **Six element types**: Entries, Categories, Assets, Users, Commerce Products and Variants. Narrow by source (Section, Group, Volume, Product Type).
 - **Native Twig**: `category.curatedProducts.all()` returns a chainable `ElementQuery`.
