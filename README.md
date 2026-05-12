@@ -2,11 +2,11 @@
 
 # Curated for Craft CMS 5
 
-Curated lets editors **manually order related elements per parent**. Works with Entries, Categories, Assets, Users, and (when Craft Commerce is installed) Products and Variants. The same target can sit at position 1 in one parent and position 9 in another, which Craft's native relations table can't do.
+Curated lets editors **manually order related elements per source**. Works with Entries, Categories, Assets, Users, and (when Craft Commerce is installed) Products and Variants. The same target can sit at position 1 on one source and position 9 on another, which Craft's native relations table can't do.
 
 ## Why
 
-Craft's `relations` table stores `sortOrder`, but it's keyed on the *source* of the relation. If Entries have a Categories field, the order is "this entry's categories", not "this category's entries." Same problem applies to Products in Categories, Assets in Albums, Users on Team entries, or any setup where the relation lives on one side but you want to order from the other. Curated stores per-parent order in its own join table, so every parent keeps its own independent order regardless of which side owns the relation.
+Craft's `relations` table stores `sortOrder`, but it's keyed on whichever element owns the relation field. If Entries have a Categories field, the order is "this entry's categories", not "this category's entries." Same problem applies to Products in Categories, Assets in Albums, Users on Team entries, or any setup where the relation lives on one side but you want to order from the other. Curated stores per-source order in its own join table, so every source keeps its own independent order regardless of which side owns the relation.
 
 ## Perfect for…
 
@@ -18,8 +18,8 @@ Craft's `relations` table stores `sortOrder`, but it's keyed on the *source* of 
 
 ## Features
 
-- **Per-parent sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
-- **Auto-discovery**: every native relation between the parent and the target type surfaces in the field, in either direction, no configuration.
+- **Per-source sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
+- **Auto-discovery**: every native relation between the source and the target type surfaces in the field, in either direction, no configuration.
 - **Default Placement**: where auto-discovered relations land before they're explicitly ordered. Before or after other elements, title, date created/updated, random, plus **price** for Commerce Products and Variants.
 - **Quick reorder actions**: Move to top / bottom / position N inside each chip's menu, alongside Craft's Move up / Move down.
 - **One-shot Sort by…**: dropdown above the picker for resorting the whole list (title, date, random, price).
@@ -34,8 +34,8 @@ Curated is about **ordering**, not establishing or proxying the relation itself.
 
 | Capability                                                | Craft's native relation fields | Many to Many            | Reverse Relations       | Curated                       |
 |-----------------------------------------------------------|--------------------------------|-------------------------|-------------------------|-------------------------------|
-| Drag-reorder per parent                                   | ❌ shared sortOrder            | ❌ uses native          | ❌ uses native          | ✅                            |
-| Same target at different positions in different parents   | ❌                             | ❌                      | ❌                      | ✅                            |
+| Drag-reorder per source                                   | ❌ shared sortOrder            | ❌ uses native          | ❌ uses native          | ✅                            |
+| Same target at different positions in different sources   | ❌                             | ❌                      | ❌                      | ✅                            |
 | Show relations created from the *other* side              | ❌                             | ✅ one configured field | ✅ one configured field | ✅ any field, either direction |
 | Field's picker writes a native relation                   | ✅                             | ✅ proxies              | varies                  | ❌ ordering only              |
 | Per-site ordering                                         | ❌                             | inherits native         | inherits native         | ✅                            |
@@ -61,8 +61,8 @@ Enable in `Settings > Plugins`, or install via the Plugin Store.
 
 ## Setup
 
-1. Create a **Curated** field. Give it a **handle** (e.g. `curatedProducts`), pick the **Element type** (Entry, Category, Asset, User, Commerce Product / Variant), optionally restrict **Sources**, then add it to the field layout of the parent element (e.g. a Category).
-2. Open the parent. The field is pre-populated with every matching element already natively related to this parent. Drag to reorder; save.
+1. Create a **Curated** field. Give it a **handle** (e.g. `curatedProducts`), pick the **Element type** (Entry, Category, Asset, User, Commerce Product / Variant), optionally restrict **Sources**, then add it to the field layout of the source element (e.g. a Category).
+2. Open the source. The field is pre-populated with every matching element already natively related to it. Drag to reorder; save.
 3. Read on the front end via your field handle. The examples below assume the handle is `curatedProducts`:
 
 ```twig
@@ -84,14 +84,14 @@ Chain any normal query method:
 {% set products = craft.products.curatedBy(category, 'curatedProducts').all() %}
 ```
 
-The second argument is the handle of the Curated field on the parent. Returns empty if the field doesn't exist on that layout.
+The second argument is the handle of the Curated field on the source. Returns empty if the field doesn't exist on that layout.
 
 ## How Curated works
 
-Curated queries every native relation between this parent and elements of the target type, in either direction:
+Curated queries every native relation between this source and elements of the target type, in either direction:
 
-- Category has an Entries field pointing at entries (parent → target), **or**
-- Entry has a Categories field pointing at the category (target → parent).
+- Category has an Entries field pointing at entries (source → target), **or**
+- Entry has a Categories field pointing at the category (target → source).
 
 Both surface in the Curated field. The displayed list is `[saved curated order] + [native relations not yet curated]`. **Default Placement** controls where new natives land.
 
@@ -124,7 +124,7 @@ Craft Commerce is required for Commerce Product and Variant types.
 
 ## Warnings
 
-1. **Curated sits alongside native relations.** Keep the canonical relation where Craft expects it; use Curated on the parent for order.
+1. **Curated sits alongside native relations.** Keep the canonical relation where Craft expects it; use Curated on the source for order.
 2. **Removing an item is soft by default.** It drops out of the saved curated order, but reappears at the end on next render because the native relation still exists. To remove for good, also remove the native relation. Or enable the **Fully remove on delete** plugin setting below.
 3. **Fully remove on delete (plugin setting) is destructive.** When on, removing an item from a Curated field also deletes every native relation row between the two elements, in both directions, across any relation field. There's no undo. Editors removing items here will silently edit the canonical relation elsewhere in Craft, not just this field. Off by default for a reason.
 4. **Curated writes content, not Project Config.** Field settings sync via project config; the curated order itself lives in `curated_relations` and won't sync between environments.
