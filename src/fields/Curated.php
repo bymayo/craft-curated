@@ -154,6 +154,16 @@ class Curated extends Field implements PreviewableFieldInterface
         return 'Curated';
     }
 
+    /**
+     * Icon shown next to the field-type name in the field picker.
+     * Bundled with the plugin so it renders without depending on Craft's
+     * built-in icon names. Lives in `src/` next to `icon.svg`.
+     */
+    public static function icon(): string
+    {
+        return __DIR__ . '/../icon-field.svg';
+    }
+
     public static function phpType(): string
     {
         return ElementQuery::class;

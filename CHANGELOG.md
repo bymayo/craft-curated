@@ -1,5 +1,11 @@
 # Release Notes for Curated
 
+## 1.0.1 - 2026-05-13
+
+### Added
+- Custom field-type icon at `src/icon-field.svg`, rendered next to "Curated" in Craft's field-type picker.
+- GitHub Actions release workflow (`.github/workflows/release.yml`). Pushes to `craft-5` that change the `version` in `composer.json` automatically tag a new GitHub release with generated notes.
+
 ## 1.0.0 - 2026-05-12
 
 ### Added
