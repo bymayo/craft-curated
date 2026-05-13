@@ -12,6 +12,8 @@ Craft can show you related elements, but can't reorder them when the relation li
 - **Event lineups**: order speakers per conference, artists per festival, or sessions per day.
 - **Series and courses**: drag episodes into the right sequence per series, modules per course, or chapters per book.
 
+<img src="https://raw.githubusercontent.com/bymayo/craft-curated/craft-5/resources/screenshot.png" width="850">
+
 ## Features
 
 - **Per-source sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
