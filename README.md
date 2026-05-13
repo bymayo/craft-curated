@@ -17,10 +17,10 @@ Craft can show you related elements, but can't reorder them when the relation li
 ## Features
 
 - **Per-source sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
-- **Auto-discovery**: every native relation between the source and the target type surfaces in the field, in either direction, no configuration.
+- **Auto-populates**: the field fills itself from every native relation between the source and target type, in either direction. No configuration.
 - **Default Placement**: where auto-discovered relations land before they're explicitly ordered. Before or after other elements, title, date created/updated, random, plus **price** for Commerce Products and Variants.
 - **Quick reorder actions**: Move to top / bottom / position N inside each item's menu, alongside Craft's Move up / Move down.
-- **Pin items**: pin an item to the top of the list from its action menu. Pinned items always lead, regardless of subsequent sorts, drag-reorders, or newly auto-discovered relations. Pinned items render with a blue marker icon and a faint blue tint so they stand out. Toggle off via the same menu (`Unpin`). Pin state is per source — pinning a product in *T-shirts* doesn't pin it in *Sale*.
+- **Pin items**: pin items to always lead the list, per source. Survives sorts, drag-reorders, and new auto-discovered relations.
 - **One-shot Sort by…**: dropdown above the picker for resorting the whole list (title, date, random, price).
 - **Search**: live filter input above the picker. Hides non-matching items while preserving order, for fields holding hundreds of items.
 - **Ordering-first by default**: the Add button is hidden; flip **Allow adding elements** on the field to enable curated-only additions.
