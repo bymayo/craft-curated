@@ -21,6 +21,7 @@
 - **Curated Sync utility** (`Utilities → Curated Sync`) and **`php craft curated/sync`** console command. Snapshots currently-related elements into the explicit curated order. Safe to re-run.
 - Twig: returns a native chainable `ElementQuery` (e.g. `category.curatedProducts.all()`).
 - `curatedBy(source, fieldHandle)` ElementQuery behavior for querying from the other side (e.g. `craft.products.curatedBy(category, 'curatedProducts').all()`).
+- **GraphQL.** Curated fields are queryable on their host element with the standard element argument set for the target type (`limit`, `status`, `search`, `orderBy`, etc.), and mutable via a list of element IDs in the desired curated order.
 - Per-site ordering. Different curated order per site in multi-site setups.
 - Auto-cleanup of curated rows when their target element is deleted.
 - **Element-index column for every Curated field.** Each Curated field is a column option on its host element's index, named after the field. Shows the first curated item as a chip and overflows the rest into a "+N" pill (the same widget Craft uses for its own relation field columns).

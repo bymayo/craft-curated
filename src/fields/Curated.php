@@ -9,6 +9,8 @@ use craft\base\Field;
 use craft\base\PreviewableFieldInterface;
 use craft\elements\db\ElementQuery;
 use craft\helpers\Cp;
+use craft\helpers\Gql as GqlHelper;
+use GraphQL\Type\Definition\Type;
 
 /**
  * Curated field
@@ -897,6 +899,98 @@ CSS);
             'type' => $targetClass::displayName(),
         ]);
         return Cp::chipHtml($mockup);
+    }
+
+    /**
+     * GraphQL output type for the field — a list of the target element type's
+     * interface, with the standard query arguments for that type (limit,
+     * offset, status, search, etc.). The resolver returns the saved curated
+     * order, with any provided arguments applied to the query before fetch.
+     */
+    public function getContentGqlType(): Type|array
+    {
+        [$interfaceType, $args] = $this->resolveGqlInterfaceAndArgs();
+
+        if ($interfaceType === null) {
+            // Target type is unavailable (e.g. Commerce uninstalled) — fall
+            // back to a list of IDs so the schema still loads.
+            return Type::listOf(Type::id());
+        }
+
+        $fieldHandle = $this->handle;
+        return [
+            'name' => $fieldHandle,
+            'type' => Type::listOf($interfaceType),
+            'args' => $args,
+            'resolve' => function ($source, array $arguments) use ($fieldHandle) {
+                if (!$source instanceof ElementInterface) {
+                    return [];
+                }
+                $query = $source->getFieldValue($fieldHandle);
+                if (!$query instanceof ElementQuery) {
+                    return [];
+                }
+                foreach ($arguments as $key => $value) {
+                    if ($value === null) {
+                        continue;
+                    }
+                    if (property_exists($query, $key) || method_exists($query, $key)) {
+                        $query->$key = $value;
+                    }
+                }
+                return $query->all();
+            },
+            'complexity' => GqlHelper::eagerLoadComplexity(),
+        ];
+    }
+
+    /**
+     * GraphQL mutation input — accepts a list of element IDs in the desired
+     * curated order. Same shape as Craft's native relation fields.
+     */
+    public function getContentGqlMutationArgumentType(): Type|array
+    {
+        return [
+            'name' => $this->handle,
+            'type' => Type::listOf(Type::id()),
+            'description' => $this->instructions . ' Accepts an array of element IDs, in the desired curated order.',
+        ];
+    }
+
+    /**
+     * Pairs each supported target element type with its GraphQL interface
+     * + query-argument classes. Commerce types are only included when the
+     * Commerce plugin is installed.
+     *
+     * @return array{0:?Type,1:array}
+     */
+    private function resolveGqlInterfaceAndArgs(): array
+    {
+        $map = [
+            \craft\elements\Asset::class => [\craft\gql\interfaces\elements\Asset::class, \craft\gql\arguments\elements\Asset::class],
+            \craft\elements\Category::class => [\craft\gql\interfaces\elements\Category::class, \craft\gql\arguments\elements\Category::class],
+            \craft\elements\Entry::class => [\craft\gql\interfaces\elements\Entry::class, \craft\gql\arguments\elements\Entry::class],
+            \craft\elements\User::class => [\craft\gql\interfaces\elements\User::class, \craft\gql\arguments\elements\User::class],
+        ];
+
+        $commerceProductInterface = 'craft\\commerce\\gql\\interfaces\\elements\\Product';
+        $commerceProductArgs = 'craft\\commerce\\gql\\arguments\\elements\\Product';
+        if (class_exists($commerceProductInterface)) {
+            $map['craft\\commerce\\elements\\Product'] = [$commerceProductInterface, $commerceProductArgs];
+        }
+
+        $commerceVariantInterface = 'craft\\commerce\\gql\\interfaces\\elements\\Variant';
+        $commerceVariantArgs = 'craft\\commerce\\gql\\arguments\\elements\\Variant';
+        if (class_exists($commerceVariantInterface)) {
+            $map['craft\\commerce\\elements\\Variant'] = [$commerceVariantInterface, $commerceVariantArgs];
+        }
+
+        if (!isset($map[$this->targetElementType])) {
+            return [null, []];
+        }
+
+        [$interfaceClass, $argsClass] = $map[$this->targetElementType];
+        return [$interfaceClass::getType(), $argsClass::getArguments()];
     }
 
     public function afterElementSave(ElementInterface $element, bool $isNew): void

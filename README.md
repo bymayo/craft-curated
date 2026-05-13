@@ -24,6 +24,7 @@ Craft can show you related elements, but can't reorder them when the relation li
 - **Ordering-first by default**: the Add button is hidden; flip **Allow adding elements** on the field to enable curated-only additions.
 - **Six element types**: Entries, Categories, Assets, Users, Commerce Products and Variants. Narrow by source (Section, Group, Volume, Product Type).
 - **Native Twig**: `category.curatedProducts.all()` returns a chainable `ElementQuery`.
+- **GraphQL**: query the field on its host element, with all the usual element arguments (`limit`, `status`, `search`, etc.), and mutate it with a list of IDs in your desired curated order.
 - **Per-site ordering**: different order per site.
 - **Element-index column**: each Curated field is a column option on its host element's index. Shows the first curated item with a "+N" overflow for the rest, exactly like Craft's native relation field columns.
 
@@ -43,6 +44,7 @@ Curated is about **ordering**, not establishing or proxying the relation itself.
 | Pin / Unpin items to the top of a source                  | ❌                             | ❌                      | ❌                      | ✅                            |
 | Inline "Sort by…" reorder (title / date / random / price) | ❌                             | ❌                      | ❌                      | ✅                            |
 | Default Placement for new relations                       | ❌                             | ❌                      | ❌                      | ✅                            |
+| GraphQL support                                           | ✅                             | ❌                      | ❌                      | ✅                            |
 
 **Different jobs.** Many to Many and Reverse Relations *edit the inverse side* of one specific relation field. Curated *orders* whatever's already related (any direction, any field).
 
@@ -85,6 +87,36 @@ Chain any normal query method:
 ```
 
 The second argument is the handle of the Curated field on the source. Returns empty if the field doesn't exist on that layout.
+
+### GraphQL
+
+Curated fields surface on their host element with the standard element argument set for the target type (`limit`, `offset`, `status`, `search`, `orderBy`, etc.). The resolver returns the saved curated order, then applies any arguments you pass.
+
+```graphql
+{
+  category(slug: "t-shirts") {
+    curatedProducts(limit: 12, status: "live") {
+      ... on Product {
+        id
+        title
+      }
+    }
+  }
+}
+```
+
+Mutations accept an array of element IDs in the desired curated order:
+
+```graphql
+mutation {
+  save_someSection_someEntryType_Entry(
+    id: 1308
+    curatedProducts: [1639, 1660, 1657]
+  ) {
+    id
+  }
+}
+```
 
 ## How Curated works
 
