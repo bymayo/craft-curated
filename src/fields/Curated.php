@@ -327,7 +327,12 @@ class Curated extends Field implements PreviewableFieldInterface
             ? Craft::t('site', $this->selectionLabel)
             : $this->defaultSelectionLabel();
 
-        $pickerHtml = Cp::elementSelectHtml($pickerConfig);
+        // Skip rendering the picker entirely when there's nothing to show
+        // and no Add button to expose, so the field collapses to just the
+        // toolbar instead of leaving a 30+px empty drop zone behind.
+        $pickerHtml = (empty($elements) && !$this->allowAdd)
+            ? ''
+            : Cp::elementSelectHtml($pickerConfig);
 
         // Pinned IDs ride along in a hidden input named `<handle>[__pinned]`
         // so Craft's namespaceInputs treats it as a sub-key of the field's
