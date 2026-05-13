@@ -55,6 +55,8 @@ return [
     'Move to bottom' => 'Move to bottom',
     'Move to position…' => 'Move to position…',
     'Move to position (1 to {total}):' => 'Move to position (1 to {total}):',
+    'Pin' => 'Pin',
+    'Unpin' => 'Unpin',
 
     // Plugin settings
     'Notice' => 'Notice',

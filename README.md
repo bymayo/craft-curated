@@ -17,14 +17,15 @@ Craft can show you related elements, but can't reorder them when the relation li
 - **Per-source sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
 - **Auto-discovery**: every native relation between the source and the target type surfaces in the field, in either direction, no configuration.
 - **Default Placement**: where auto-discovered relations land before they're explicitly ordered. Before or after other elements, title, date created/updated, random, plus **price** for Commerce Products and Variants.
-- **Quick reorder actions**: Move to top / bottom / position N inside each chip's menu, alongside Craft's Move up / Move down.
+- **Quick reorder actions**: Move to top / bottom / position N inside each item's menu, alongside Craft's Move up / Move down.
+- **Pin items**: pin an item to the top of the list from its action menu. Pinned items always lead, regardless of subsequent sorts, drag-reorders, or newly auto-discovered relations. Pinned items render with a blue marker icon and a faint blue tint so they stand out. Toggle off via the same menu (`Unpin`). Pin state is per source — pinning a product in *T-shirts* doesn't pin it in *Sale*.
 - **One-shot Sort by…**: dropdown above the picker for resorting the whole list (title, date, random, price).
-- **Search**: live filter input above the picker. Hides non-matching chips while preserving order, for fields holding hundreds of items.
+- **Search**: live filter input above the picker. Hides non-matching items while preserving order, for fields holding hundreds of items.
 - **Ordering-first by default**: the Add button is hidden; flip **Allow adding elements** on the field to enable curated-only additions.
 - **Six element types**: Entries, Categories, Assets, Users, Commerce Products and Variants. Narrow by source (Section, Group, Volume, Product Type).
 - **Native Twig**: `category.curatedProducts.all()` returns a chainable `ElementQuery`.
 - **Per-site ordering**: different order per site.
-- **Element-index column**: each Curated field is a column option on its host element's index. Shows the first curated item as a chip with a "+N" overflow for the rest, exactly like Craft's native relation field columns.
+- **Element-index column**: each Curated field is a column option on its host element's index. Shows the first curated item with a "+N" overflow for the rest, exactly like Craft's native relation field columns.
 
 ## How Curated compares
 
@@ -39,6 +40,7 @@ Curated is about **ordering**, not establishing or proxying the relation itself.
 | Per-site ordering                                         | ❌                             | inherits native         | inherits native         | ✅                            |
 | Auto-includes new relations created elsewhere             | ❌                             | ❌                      | ❌                      | ✅                            |
 | Quick reorder actions (Move to top / bottom / position)   | ❌                             | ❌                      | ❌                      | ✅                            |
+| Pin / Unpin items to the top of a source                  | ❌                             | ❌                      | ❌                      | ✅                            |
 | Inline "Sort by…" reorder (title / date / random / price) | ❌                             | ❌                      | ❌                      | ✅                            |
 | Default Placement for new relations                       | ❌                             | ❌                      | ❌                      | ✅                            |
 
@@ -126,13 +128,13 @@ Craft Commerce is required for Commerce Product and Variant types.
 2. **Removing an item is soft by default.** It drops out of the saved curated order, but reappears at the end on next render because the native relation still exists. To remove for good, also remove the native relation. Or enable the **Fully remove on delete** plugin setting below.
 3. **Fully remove on delete (plugin setting) is destructive.** When on, removing an item from a Curated field also deletes every native relation row between the two elements, in both directions, across any relation field. There's no undo. Editors removing items here will silently edit the canonical relation elsewhere in Craft, not just this field. Off by default for a reason.
 4. **Curated writes content, not Project Config.** Field settings sync via project config; the curated order itself lives in `curated_relations` and won't sync between environments.
-5. **Large lists.** The drag UI is good for hundreds of items, not tens of thousands. See the `max_input_vars` note below if you expect 1000+ chips per field.
+5. **Large lists.** The drag UI is good for hundreds of items, not tens of thousands. See the `max_input_vars` note below if you expect 1000+ items per field.
 
 When an element is deleted entirely, it's removed from every curated list automatically.
 
 ### `max_input_vars` and big lists
 
-PHP's `max_input_vars` (default `1000`) caps how many form inputs a request can have. Craft's element picker emits one input per chip, so lists over ~1000 items will silently lose items on save unless you raise the limit:
+PHP's `max_input_vars` (default `1000`) caps how many form inputs a request can have. Craft's element picker emits one input per item, so lists over ~1000 items will silently lose items on save unless you raise the limit:
 
 ```ini
 max_input_vars = 5000

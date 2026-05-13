@@ -33,23 +33,56 @@ class Curated extends Component
                 'sourceId' => $sourceId,
                 'sourceSiteId' => $sourceSiteId,
             ])
-            ->orderBy(['sortOrder' => SORT_ASC])
+            ->orderBy(['pinned' => SORT_DESC, 'sortOrder' => SORT_ASC])
             ->column();
     }
 
     /**
-     * Merge of curated order + every native relation between this parent and
-     * elements of the field's target type, deduped. Curated entries keep
-     * their saved order; newly-discovered natives are appended.
+     * IDs that are pinned for a given (field, source, site).
+     *
+     * @return int[]
+     */
+    public function getPinnedIds(int $fieldId, int $sourceId, ?int $sourceSiteId): array
+    {
+        return array_map('intval', CuratedRelation::find()
+            ->select(['targetId'])
+            ->where([
+                'fieldId' => $fieldId,
+                'sourceId' => $sourceId,
+                'sourceSiteId' => $sourceSiteId,
+                'pinned' => true,
+            ])
+            ->orderBy(['sortOrder' => SORT_ASC])
+            ->column());
+    }
+
+    /**
+     * Merge of pinned curated + ordered curated + auto-discovered natives.
+     * Pinned IDs always lead. Within pinned and curated groups, saved order
+     * is honored. Newly-discovered natives respect Default Placement.
      *
      * @return int[]
      */
     public function getMergedTargetIds(CuratedField $field, ElementInterface $parent): array
     {
-        $curated = array_map('intval', $this->getTargetIds($field->id, $parent->id, $parent->siteId));
-        $native = $this->getNativeRelatedIds($field, $parent);
+        // Drafts share their curated state with their canonical — look up by
+        // canonical ID so a freshly-created provisional draft sees the
+        // canonical's pins and order.
+        $parentId = (int)($parent->getCanonicalId() ?? $parent->id);
+        $allCurated = array_map('intval', $this->getTargetIds($field->id, $parentId, $parent->siteId));
+        $pinnedIds = $this->getPinnedIds($field->id, $parentId, $parent->siteId);
+        $pinnedSet = array_flip($pinnedIds);
 
-        $seen = array_flip($curated);
+        // Curated rows minus pinned (so pinned aren't double-counted).
+        $curated = [];
+        foreach ($allCurated as $id) {
+            if (!isset($pinnedSet[$id])) {
+                $curated[] = $id;
+            }
+        }
+
+        $native = $this->getNativeRelatedIds($field, $parent);
+        $seen = array_flip(array_merge($pinnedIds, $curated));
         $newNatives = [];
         foreach ($native as $id) {
             if (!isset($seen[$id])) {
@@ -58,9 +91,11 @@ class Curated extends Component
             }
         }
 
-        return $field->initialSort === CuratedField::SORT_PLACE_AT_TOP
+        $body = $field->initialSort === CuratedField::SORT_PLACE_AT_TOP
             ? array_merge($newNatives, $curated)
             : array_merge($curated, $newNatives);
+
+        return array_merge($pinnedIds, $body);
     }
 
     /**
@@ -231,9 +266,10 @@ class Curated extends Component
      *
      * @param int[] $targetIds
      */
-    public function saveOrder(int $fieldId, int $sourceId, ?int $sourceSiteId, array $targetIds): void
+    public function saveOrder(int $fieldId, int $sourceId, ?int $sourceSiteId, array $targetIds, array $pinnedIds = []): void
     {
         $db = Craft::$app->getDb();
+        $pinnedSet = array_flip(array_map('intval', $pinnedIds));
         $transaction = $db->beginTransaction();
 
         try {
@@ -254,6 +290,7 @@ class Curated extends Component
                     $sourceSiteId,
                     (int)$targetId,
                     $i + 1,
+                    isset($pinnedSet[(int)$targetId]) ? 1 : 0,
                     $now,
                     $now,
                     StringHelper::UUID(),
@@ -264,7 +301,7 @@ class Curated extends Component
                 $db->createCommand()
                     ->batchInsert('{{%curated_relations}}', [
                         'fieldId', 'sourceId', 'sourceSiteId', 'targetId',
-                        'sortOrder', 'dateCreated', 'dateUpdated', 'uid',
+                        'sortOrder', 'pinned', 'dateCreated', 'dateUpdated', 'uid',
                     ], $rows)
                     ->execute();
             }

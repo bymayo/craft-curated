@@ -75,6 +75,18 @@ class Curated extends Field implements PreviewableFieldInterface
     public bool $allowAdd = false;
 
     /**
+     * Session key prefix for pinned-IDs captured in normalizeValue.
+     *
+     * Saving a drafted entry fires multiple HTTP requests: one that carries
+     * the `__pinned` POST data and saves the provisional draft, then a
+     * follow-up that applies the draft to the canonical without re-passing
+     * POST. A PHP-static stash doesn't survive between those requests, so
+     * the pinned state lives in the user's session, keyed by field ID and
+     * canonical element ID (drafts and their canonical share that ID).
+     */
+    private const PIN_SESSION_PREFIX = 'curated:pin:';
+
+    /**
      * Initial ordering applied to auto-discovered native relations that
      * aren't yet in the curated order. Once an editor drags, that order
      * is persisted and this setting no longer applies to those items.
@@ -315,7 +327,22 @@ class Curated extends Field implements PreviewableFieldInterface
 
         $pickerHtml = Cp::elementSelectHtml($pickerConfig);
 
-        return $this->renderSortToolbar($element) . $pickerHtml . $this->renderEditorNotice();
+        // Pinned IDs ride along in a hidden input named `<handle>[__pinned]`
+        // so Craft's namespaceInputs treats it as a sub-key of the field's
+        // POST array, alongside the chip IDs. Then normalizeValue sees
+        // `__pinned` as a key inside the value array and can capture it.
+        $canonicalId = $element ? (int)($element->getCanonicalId() ?? $element->id) : 0;
+        $pinnedIds = ($canonicalId > 0 && $this->id)
+            ? Plugin::getInstance()->curated->getPinnedIds($this->id, $canonicalId, $element->siteId)
+            : [];
+
+        $pinnedHtml = sprintf(
+            '<input type="hidden" name="%s[__pinned]" class="curated-pinned-input" value="%s">',
+            htmlspecialchars($this->handle, ENT_QUOTES),
+            htmlspecialchars(implode(',', $pinnedIds), ENT_QUOTES)
+        );
+
+        return $this->renderSortToolbar($element) . $pickerHtml . $pinnedHtml . $this->renderEditorNotice();
     }
 
     private function renderEditorNotice(): string
@@ -385,14 +412,91 @@ class Curated extends Field implements PreviewableFieldInterface
         $labelPosition = json_encode(Craft::t('curated', 'Move to position…'));
         $labelPrompt = json_encode(Craft::t('curated', 'Move to position (1 to {total}):'));
         $labelSortConfirm = json_encode(Craft::t('curated', 'Overwrite the current order?'));
+        $labelPin = json_encode(Craft::t('curated', 'Pin'));
+        $labelUnpin = json_encode(Craft::t('curated', 'Unpin'));
         $sortActionUrl = json_encode(\craft\helpers\UrlHelper::actionUrl('curated/sort/run'));
+
+        // Inline thumbtack SVG so the marker renders in Craft 5 where the
+        // legacy `data-icon` font glyph system is gone. Source: Font Awesome
+        // (same path Craft itself ships for the `thumbtack` icon).
+        $pinSvg = json_encode(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true" focusable="false">' .
+            '<path fill="currentColor" d="M306.5 186.6l-5.7-42.6H328c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H56C42.7 0 32 10.7 32 24v96c0 13.3 10.7 24 24 24h27.2l-5.7 42.6C28.9 207.4 0 244.5 0 287.6c0 16.4 13.3 29.7 29.7 29.7H160v161.6c0 1.6.4 3.2 1.1 4.6l24 48c4 8.1 15.7 8.1 19.7 0l24-48c.7-1.4 1.1-3 1.1-4.6V317.4h130.3c16.4 0 29.7-13.3 29.7-29.7 0-43.1-28.9-80.2-83.4-100.9z"/>' .
+            '</svg>'
+        );
 
         $js = <<<JS
 (function() {
+    function pinnedInputFor(picker) {
+        return picker.\$container.closest('.field, .input').first().find('.curated-pinned-input').first();
+    }
+    function pinnedIds(picker) {
+        var input = pinnedInputFor(picker);
+        if (!input.length) return [];
+        var v = (input.val() || '').trim();
+        if (!v) return [];
+        return v.split(',').map(function(s) { return parseInt(s, 10); }).filter(function(n) { return !isNaN(n); });
+    }
+    function setPinned(picker, ids) {
+        var input = pinnedInputFor(picker);
+        input.val(ids.join(','));
+        var set = {};
+        ids.forEach(function(id) { set[id] = true; });
+        picker.\$elementsContainer.find('> li').each(function() {
+            var \$li = jQuery(this);
+            var id = parseInt(\$li.find('> .element, > .chip').data('id'), 10);
+            var pinned = !!set[id];
+            \$li.toggleClass('curated-pinned', pinned);
+            // Pin icon sits in `.chip-actions`, before the drag-handle dots.
+            var \$actions = \$li.find('.chip-actions').first();
+            if (!\$actions.length) return;
+            var \$marker = \$actions.find('.curated-pin-marker');
+            if (pinned && !\$marker.length) {
+                jQuery('<span class="curated-pin-marker" aria-hidden="true">' + {$pinSvg} + '</span>').prependTo(\$actions);
+            } else if (!pinned && \$marker.length) {
+                \$marker.remove();
+            }
+        });
+    }
+    function pinChip(picker, \$element) {
+        var id = parseInt(\$element.data('id'), 10);
+        if (isNaN(id)) return;
+        var ids = pinnedIds(picker);
+        if (ids.indexOf(id) === -1) ids.push(id);
+        setPinned(picker, ids);
+        var \$row = \$element.closest('li');
+        picker.\$elementsContainer.prepend(\$row);
+        picker.onSortChange();
+    }
+    function unpinChip(picker, \$element) {
+        var id = parseInt(\$element.data('id'), 10);
+        if (isNaN(id)) return;
+        var ids = pinnedIds(picker).filter(function(n) { return n !== id; });
+        setPinned(picker, ids);
+        picker.onSortChange();
+    }
+
     function makeExtraActions(\$element, picker) {
         var container = picker.\$elementsContainer;
         function \$li() { return \$element.closest('li'); }
+        var id = parseInt(\$element.data('id'), 10);
+        var initiallyPinned = pinnedIds(picker).indexOf(id) !== -1;
+
         return [{
+            // `icon` and `iconHtml` aren't honored for items added through
+            // defineElementActions, so leave them blank and inject the SVG
+            // ourselves after the menu opens (see scanMenusForPinIcon below).
+            label: initiallyPinned ? {$labelUnpin} : {$labelPin},
+            callback: function() {
+                // Re-check current pin state on click — the menu is built
+                // once and could be stale by the time the editor clicks.
+                if (pinnedIds(picker).indexOf(id) !== -1) {
+                    unpinChip(picker, \$element);
+                } else {
+                    pinChip(picker, \$element);
+                }
+            },
+        }, {
             icon: 'arrow-up-to-line',
             label: {$labelTop},
             callback: function() {
@@ -434,6 +538,68 @@ class Curated extends Field implements PreviewableFieldInterface
             },
         }];
     }
+
+    // Initial pinned-class application on existing chips. Runs once per
+    // page; idempotent thereafter.
+    setTimeout(function() {
+        jQuery('.elementselect[data-curated]').each(function() {
+            var picker = jQuery(this).data('elementSelect');
+            if (picker) setPinned(picker, pinnedIds(picker));
+        });
+    }, 0);
+
+    // Inject the pin SVG into Pin/Unpin menu items as they appear in the DOM.
+    // Items added via defineElementActions don't honor `icon` / `iconHtml`,
+    // so we match by label text and prepend the SVG to the existing button.
+    var PIN_LABEL = {$labelPin};
+    var UNPIN_LABEL = {$labelUnpin};
+    function decorateMenu(\$menu) {
+        \$menu.find('button, a').each(function() {
+            var \$btn = jQuery(this);
+            if (\$btn.data('curatedPinDecorated')) return;
+            var text = jQuery.trim(\$btn.text());
+            if (text !== PIN_LABEL && text !== UNPIN_LABEL) return;
+            \$btn.data('curatedPinDecorated', true);
+            \$btn.find('.curated-menu-pin-icon').remove();
+            jQuery('<span class="menu-item-icon curated-menu-pin-icon" aria-hidden="true">' + {$pinSvg} + '</span>')
+                .prependTo(\$btn);
+        });
+    }
+    // Re-apply the pinned class/marker on any Curated pickers that get
+    // (re-)rendered after the initial page load — e.g. when Craft replaces
+    // the field's HTML in-place after a save.
+    function reinitPickerPins(\$picker) {
+        // Defer a tick so any Garnish init has finished attaching the
+        // BaseElementSelectInput instance.
+        setTimeout(function() {
+            var picker = \$picker.data('elementSelect');
+            if (picker) setPinned(picker, pinnedIds(picker));
+        }, 0);
+    }
+    if (window.MutationObserver) {
+        var menuObserver = new MutationObserver(function(mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+                var added = mutations[i].addedNodes;
+                for (var j = 0; j < added.length; j++) {
+                    var node = added[j];
+                    if (!node || node.nodeType !== 1) continue;
+                    var \$node = jQuery(node);
+                    if (\$node.hasClass('menu') || \$node.hasClass('menu--disclosure')) decorateMenu(\$node);
+                    \$node.find('.menu, .menu--disclosure').each(function() { decorateMenu(jQuery(this)); });
+                    // Curated pickers freshly inserted into the DOM (e.g.
+                    // after an in-place save re-render) need their pinned
+                    // chips re-styled.
+                    if (\$node.is('.elementselect[data-curated]')) reinitPickerPins(\$node);
+                    \$node.find('.elementselect[data-curated]').each(function() {
+                        reinitPickerPins(jQuery(this));
+                    });
+                }
+            }
+        });
+        menuObserver.observe(document.body, { childList: true, subtree: true });
+    }
+    // Decorate any menus already in the DOM at script start.
+    jQuery('.menu, .menu--disclosure').each(function() { decorateMenu(jQuery(this)); });
 
     // Patch defineElementActions so any chips added later (via "Add an
     // element") get our extra items when their menu is built.
@@ -582,6 +748,38 @@ JS;
     align-items: center;
     line-height: 1;
 }
+.curated-pin-marker {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+    color: var(--link-color, #2c5cdb);
+    cursor: default;
+}
+.curated-pin-marker svg {
+    width: 12px;
+    height: 12px;
+}
+.curated-pinned > .element,
+.curated-pinned > .chip {
+    background-color: color-mix(in srgb, var(--link-color, #2c5cdb) 8%, transparent);
+}
+.curated-menu-pin-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    width: 14px;
+    height: 14px;
+    margin-right: 10px;
+    color: inherit;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+.curated-menu-pin-icon svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
 CSS);
     }
 
@@ -589,6 +787,21 @@ CSS);
     {
         if ($value instanceof ElementQuery) {
             return $value;
+        }
+
+        // The hidden pinned input submits as `fields[handle][__pinned]`
+        // alongside chip IDs at numeric keys. Stash the value in the user's
+        // session (keyed by field ID + canonical element ID) so both the
+        // draft save and the canonical save — separate requests — can read
+        // the same value. Strip the key before resolving chip IDs.
+        if (is_array($value) && array_key_exists('__pinned', $value)) {
+            $canonicalId = $this->pinSessionCanonicalId($element);
+            if ($canonicalId > 0) {
+                $sessionKey = self::PIN_SESSION_PREFIX . $this->id . ':' . $canonicalId;
+                Craft::$app->getSession()->set($sessionKey, (string)$value['__pinned']);
+            }
+            unset($value['__pinned']);
+            $value = array_values($value);
         }
 
         $ids = $this->resolveIds($value, $element);
@@ -652,6 +865,11 @@ CSS);
         if ($ids !== null) {
             $service = Plugin::getInstance()->curated;
 
+            // Use the canonical element's ID as the source — drafts share
+            // their curated state with the canonical so reloading after a
+            // save doesn't lose pins or ordering.
+            $sourceId = (int)($element->getCanonicalId() ?? $element->id);
+
             // If the "remove native relations" setting is on, find chips that
             // dropped out of the curated order on this save and delete the
             // matching native relation rows. Auto-discovery picks them up
@@ -659,26 +877,81 @@ CSS);
             if (Plugin::getInstance()->getSettings()->removeNativeRelations) {
                 $previousIds = array_map('intval', $service->getTargetIds(
                     $this->id,
-                    $element->id,
+                    $sourceId,
                     $element->siteId
                 ));
                 $previousMerged = $service->getMergedTargetIds($this, $element);
                 $beforeIds = array_unique(array_merge($previousIds, $previousMerged));
                 $removed = array_diff($beforeIds, $ids);
                 foreach ($removed as $targetId) {
-                    $service->deleteNativeRelations((int)$element->id, (int)$targetId);
+                    $service->deleteNativeRelations($sourceId, (int)$targetId);
                 }
+            }
+
+            // Pinned IDs ride along in the hidden `__pinned` sub-key of the
+            // field's POST array. Captured in normalizeValue into the user's
+            // session, keyed by field ID + canonical element ID, so saves
+            // that span multiple requests (draft → apply-to-canonical) all
+            // see the same value. The session entry is cleared once the
+            // canonical save has consumed it.
+            $pinnedIds = [];
+            $sessionKey = $sourceId > 0 ? self::PIN_SESSION_PREFIX . $this->id . ':' . $sourceId : null;
+            $session = Craft::$app->getSession();
+            $raw = $sessionKey !== null ? $session->get($sessionKey) : null;
+
+            // Craft fires a cascade of internal afterElementSave calls after a
+            // user save — including ones with no POST body for this field. If
+            // we have no fresh pin data from this request, preserve the
+            // existing DB pinned state instead of wiping it.
+            $fieldInPost = false;
+            $request = Craft::$app->getRequest();
+            if (!$request->getIsConsoleRequest()) {
+                $bodyFields = $request->getBodyParam('fields', []);
+                $fieldInPost = is_array($bodyFields) && isset($bodyFields[$this->handle]);
+            }
+            if (($raw === null || $raw === '') && !$fieldInPost) {
+                $existingPinned = $service->getPinnedIds($this->id, $sourceId, $element->siteId);
+                $raw = implode(',', $existingPinned);
+            }
+
+            if ($raw !== null && $raw !== '') {
+                $pinnedIds = array_values(array_filter(array_map('intval', explode(',', (string)$raw))));
+                // Only persist pins that actually exist in the saved order.
+                $idSet = array_flip($ids);
+                $pinnedIds = array_values(array_filter($pinnedIds, fn($id) => isset($idSet[$id])));
             }
 
             $service->saveOrder(
                 $this->id,
-                $element->id,
+                $sourceId,
                 $element->siteId,
-                $ids
+                $ids,
+                $pinnedIds
             );
+
+            // Intentionally NOT clearing the session entry here. Craft fires
+            // additional internal saves after the canonical with no POST body
+            // for this field; if the session were empty when those run, they
+            // would wipe the just-written pin state. The stash is naturally
+            // overwritten by the next user save (via normalizeValue) and
+            // disappears with the user's session.
         }
 
         parent::afterElementSave($element, $isNew);
+    }
+
+    /**
+     * Resolve the canonical element ID for use as a session key segment.
+     * Drafts return their canonical's ID; canonicals return their own.
+     * Returns 0 when no element is available (e.g. validation contexts).
+     */
+    private function pinSessionCanonicalId(?ElementInterface $element): int
+    {
+        if (!$element) {
+            return 0;
+        }
+        $canonicalId = method_exists($element, 'getCanonicalId') ? $element->getCanonicalId() : null;
+        return (int)($canonicalId ?? $element->id ?? 0);
     }
 
     /**

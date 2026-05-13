@@ -11,6 +11,7 @@ use craft\db\ActiveRecord;
  * @property int|null $sourceSiteId
  * @property int $targetId
  * @property int $sortOrder
+ * @property bool $pinned
  */
 class CuratedRelation extends ActiveRecord
 {
