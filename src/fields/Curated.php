@@ -437,6 +437,43 @@ class Curated extends Field implements PreviewableFieldInterface
         if (!v) return [];
         return v.split(',').map(function(s) { return parseInt(s, 10); }).filter(function(n) { return !isNaN(n); });
     }
+    // Whenever a reorder happens (drag, Move up/down, Move to top/bottom/
+    // position N, pin/unpin, Craft's native actions), pin items should
+    // always lead. This normalizes the DOM so anything non-pinned that
+    // drifted above a pinned item gets pushed back below, and updates the
+    // hidden input so the new pinned order (if any pinned items were
+    // reshuffled among themselves) is persisted to the DB on save.
+    var enforcing = false;
+    function enforcePinnedOrder(picker) {
+        if (enforcing) return;
+        var ids = pinnedIds(picker);
+        if (!ids.length) return;
+        enforcing = true;
+        try {
+            var set = {};
+            ids.forEach(function(id) { set[id] = true; });
+            var container = picker.\$elementsContainer;
+            var pinnedRows = [];
+            var unpinnedRows = [];
+            container.find('> li').each(function() {
+                var \$li = jQuery(this);
+                var id = parseInt(\$li.find('> .element, > .chip').first().data('id'), 10);
+                if (set[id]) pinnedRows.push(\$li);
+                else unpinnedRows.push(\$li);
+            });
+            // Re-append in pinned-first order. Same parent → moves nodes.
+            pinnedRows.concat(unpinnedRows).forEach(function(\$li) {
+                container.append(\$li);
+            });
+            // Persist the (potentially reshuffled) pinned order to the input.
+            var input = pinnedInputFor(picker);
+            input.val(pinnedRows.map(function(\$li) {
+                return parseInt(\$li.find('> .element, > .chip').first().data('id'), 10);
+            }).join(','));
+        } finally {
+            enforcing = false;
+        }
+    }
     function setPinned(picker, ids) {
         var input = pinnedInputFor(picker);
         input.val(ids.join(','));
@@ -612,6 +649,18 @@ class Curated extends Field implements PreviewableFieldInterface
             if (!this.\$container || !this.\$container.is('[data-curated]')) return actions;
             \$element.data('curatedExtraAdded', true);
             return actions.concat(makeExtraActions(\$element, this));
+        };
+
+        // After any reorder (drag, Move up/down, custom actions, pin/unpin),
+        // snap pinned items back to the top of the list and pull any
+        // non-pinned item that ended up above a pinned one down to where it
+        // belongs.
+        var origOnSortChange = Craft.BaseElementSelectInput.prototype.onSortChange;
+        Craft.BaseElementSelectInput.prototype.onSortChange = function() {
+            if (this.\$container && this.\$container.is('[data-curated]')) {
+                enforcePinnedOrder(this);
+            }
+            return origOnSortChange ? origOnSortChange.apply(this, arguments) : undefined;
         };
     }
 
