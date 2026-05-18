@@ -6,6 +6,9 @@ Craft can show you related elements, but can't reorder them when the relation li
 
 **Curated fixes that.** The field auto-populates from existing relations — add a Product to your *T-shirts* category and it appears in *T-shirts'* Curated field, ready to drag into place. The same Product can sit at #1 in *T-shirts* and #9 in *Sale*, each category with its own independent order. Works with Entries, Categories, Assets, Users, and (with Craft Commerce) Products and Variants.
 
+> ### 🎬 &nbsp;[Watch the video walkthrough →](https://www.youtube.com/watch?v=Vzwgn6WafNg)
+> See Curated in action in under a few minutes.
+
 ## Perfect for…
 
 - **Categories with products**: reorder products per category, move popular items to the top.
@@ -15,14 +18,6 @@ Craft can show you related elements, but can't reorder them when the relation li
 - **Series and courses**: drag episodes into the right sequence per series, modules per course, or chapters per book.
 
 <img src="https://raw.githubusercontent.com/bymayo/craft-curated/craft-5/resources/screenshot.png" width="850">
-
-## 🎬 Video walkthrough
-
-<a href="https://www.youtube.com/watch?v=Vzwgn6WafNg">
-  <img src="https://img.youtube.com/vi/Vzwgn6WafNg/maxresdefault.jpg" width="850" alt="Watch the Curated for Craft CMS walkthrough on YouTube">
-</a>
-
-▶ [**Watch on YouTube →**](https://www.youtube.com/watch?v=Vzwgn6WafNg)
 
 ## Features
 
