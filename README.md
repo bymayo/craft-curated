@@ -16,6 +16,14 @@ Craft can show you related elements, but can't reorder them when the relation li
 
 <img src="https://raw.githubusercontent.com/bymayo/craft-curated/craft-5/resources/screenshot.png" width="850">
 
+## 🎬 Video walkthrough
+
+<a href="https://www.youtube.com/watch?v=Vzwgn6WafNg">
+  <img src="https://img.youtube.com/vi/Vzwgn6WafNg/maxresdefault.jpg" width="850" alt="Watch the Curated for Craft CMS walkthrough on YouTube">
+</a>
+
+▶ [**Watch on YouTube →**](https://www.youtube.com/watch?v=Vzwgn6WafNg)
+
 ## Features
 
 - **Per-source sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
