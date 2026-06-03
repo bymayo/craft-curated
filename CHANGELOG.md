@@ -1,5 +1,14 @@
 # Release Notes for Curated
 
+## 1.0.2 - 2026-06-03
+
+### Fixed
+- Curated Sync no longer clears pinned items when it appends newly-related elements. Pins are now preserved across syncs.
+
+### Changed
+- The Curated Sync utility now uses the Curated field icon instead of a generic list icon.
+- Reworded the Curated Sync utility description.
+
 ## 1.0.1 - 2026-05-13
 
 ### Added

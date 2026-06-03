@@ -16,7 +16,7 @@ class SyncController extends Controller
      *
      * Walks every Curated field that has a tracked relation field, finds every
      * parent element using that field, and tops up the curated order with any
-     * missing related elements. Idempotent — running it twice does nothing
+     * missing related elements. Idempotent. Running it twice does nothing
      * the second time.
      */
     public function actionIndex(): int

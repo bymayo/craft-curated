@@ -393,7 +393,10 @@ class Curated extends Component
         }
 
         if ($appended > 0) {
-            $this->saveOrder($field->id, $parent->id, $parent->siteId, $existing);
+            // saveOrder() rewrites every row, so the existing pinned flags must
+            // be passed through or they'd be cleared on each sync that appends.
+            $pinnedIds = $this->getPinnedIds($field->id, $parent->id, $parent->siteId);
+            $this->saveOrder($field->id, $parent->id, $parent->siteId, $existing, $pinnedIds);
         }
 
         return $appended;

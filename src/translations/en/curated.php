@@ -71,6 +71,6 @@ return [
 
     // Curated Sync utility
     'Curated Sync' => 'Curated Sync',
-    'Walks every Curated field that has a tracked relation field, finds every parent element using that field, and tops up the curated order with any missing related elements. Safe to re-run — already-curated items are left in place.' => 'Walks every Curated field that has a tracked relation field, finds every parent element using that field, and tops up the curated order with any missing related elements. Safe to re-run — already-curated items are left in place.',
-    'Sync now' => 'Sync now',
+    'Syncs and adds any missing related elements to each Curated field. Safe to re-run, already-curated items stay in place.' => 'Syncs and adds any missing related elements to each Curated field. Safe to re-run, already-curated items stay in place.',
+    'Sync Curated Fields' => 'Sync Curated Fields',
 ];

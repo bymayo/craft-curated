@@ -19,7 +19,7 @@ class CuratedSync extends Utility
 
     public static function icon(): ?string
     {
-        return 'list-ol';
+        return __DIR__ . '/../icon-field.svg';
     }
 
     public static function contentHtml(): string
