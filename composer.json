@@ -3,7 +3,7 @@
   "description": "Manually order related elements per source in Craft CMS.",
   "keywords": ["craftcms", "craft-plugin", "fields", "relations", "sort", "ordering", "curated"],
   "type": "craft-plugin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "proprietary",
   "support": {
     "email": "jason@bymayo.co.uk",

@@ -6,6 +6,7 @@ use bymayo\curated\fields\Curated as CuratedField;
 use bymayo\curated\records\CuratedRelation;
 use Craft;
 use craft\base\ElementInterface;
+use craft\base\NestedElementInterface;
 use craft\elements\db\ElementQuery;
 use craft\helpers\StringHelper;
 use yii\base\Component;
@@ -110,16 +111,52 @@ class Curated extends Component
         if (!$targetClass || !class_exists($targetClass)) {
             return [];
         }
+
+        // When the Curated field is nested (e.g. inside a Matrix block), the
+        // element passed in is the nested entry — but native relations are
+        // almost always made against the top-level owner (the page being
+        // edited), not the block itself. Match relations against the parent
+        // OR any element in its owner chain so auto-pull works at any depth.
+        $relationTargets = $this->relationTargets($parent);
+
         /** @var class-string<ElementInterface> $targetClass */
         $query = $targetClass::find()
             ->status(null)
             ->siteId($parent->siteId)
-            ->relatedTo($parent);
+            ->relatedTo(count($relationTargets) > 1
+                ? array_merge(['or'], $relationTargets)
+                : $parent);
 
         $this->applySources($field, $query);
         $this->applyInitialSort($query, $field->initialSort);
 
         return array_map('intval', $query->ids());
+    }
+
+    /**
+     * The element plus its full owner chain. For a nested element (such as a
+     * Matrix block entry) this returns the block and every owner up to the
+     * root; for a top-level element it's just `[$parent]`. Used to match
+     * native relations made against any level of the hierarchy.
+     *
+     * @return ElementInterface[]
+     */
+    private function relationTargets(ElementInterface $parent): array
+    {
+        $targets = [$parent];
+        $current = $parent;
+        $guard = 0;
+
+        while (
+            $current instanceof NestedElementInterface &&
+            ($owner = $current->getOwner()) !== null &&
+            $guard++ < 10
+        ) {
+            $targets[] = $owner;
+            $current = $owner;
+        }
+
+        return $targets;
     }
 
     /**

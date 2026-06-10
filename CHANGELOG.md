@@ -1,5 +1,10 @@
 # Release Notes for Curated
 
+## 1.0.3 - 2026-06-10
+
+### Fixed
+- Auto-discovery now works when a Curated field is nested (e.g. inside a Matrix block). Native relations made against the top-level owner are matched against the element's full owner chain, so related elements are pulled in at any nesting depth.
+
 ## 1.0.2 - 2026-06-03
 
 ### Fixed
