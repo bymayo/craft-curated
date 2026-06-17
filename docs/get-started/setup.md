@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Get started](../README.md#get-started) › Setup
-
 # Setup
 
 This walks through creating a Curated field, populating it, and rendering it on the front end. The examples assume a field with the handle `curatedProducts` on a **Category**, ordering **Commerce Products** — adapt the handles and element types to your own setup.
@@ -42,7 +40,3 @@ That's it. For chaining query methods, querying from the other side, and GraphQL
 - The front-end loop above outputs items in your saved order.
 
 If the field is empty when you expect items, confirm there's an actual native relation between the source and the target elements (Curated only *orders* existing relations — it doesn't create them). See [How Curated works](../features/how-it-works.md).
-
----
-
-[← Requirements](requirements.md) · [Features overview →](../features/overview.md)

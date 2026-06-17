@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Features](../README.md#features) › Reordering
-
 # Reordering
 
 Curated gives you several ways to get a list into the order you want — from dragging a handful of items to resorting hundreds at once.
@@ -41,7 +39,3 @@ This is a one-shot action — it rewrites the current order, it doesn't set an o
 ## Search
 
 A live **search** input above the picker filters the visible items as you type. Non-matching items are hidden while their order is preserved underneath — nothing is reordered or removed. Designed for fields holding hundreds of items where scrolling to find one is slow.
-
----
-
-[← How Curated works](how-it-works.md) · [Field settings →](field-settings.md)

@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Guides](../README.md#guides) › How Curated compares
-
 # How Curated compares
 
 Curated is about **ordering**, not establishing or proxying the relation itself.
@@ -21,7 +19,3 @@ Curated is about **ordering**, not establishing or proxying the relation itself.
 **Different jobs.** Many to Many and Reverse Relations *edit the inverse side* of one specific relation field. Curated *orders* whatever's already related (any direction, any field).
 
 This is why Curated's picker doesn't write a native relation — see [How Curated works](../features/how-it-works.md). Pair Curated with whichever field already holds the canonical relation.
-
----
-
-[← Use cases](use-cases.md) · [Supported element types →](supported-element-types.md)

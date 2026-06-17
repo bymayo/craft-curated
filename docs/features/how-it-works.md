@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Features](../README.md#features) › How Curated works
-
 # How Curated works
 
 Curated queries every native relation between this source and elements of the target type, in either direction:
@@ -24,7 +22,3 @@ This is why removing an item is soft by default, and why a field can appear empt
 ## Per source, per site
 
 Order is stored **per source** and **per site**. The same target element can hold a different position in every source it's related to, and a different order in each site.
-
----
-
-[← Features overview](overview.md) · [Reordering →](reordering.md)

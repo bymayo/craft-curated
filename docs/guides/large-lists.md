@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Guides](../README.md#guides) › Large lists & limits
-
 # Large lists & limits
 
 ## Warnings
@@ -20,7 +18,3 @@ PHP's `max_input_vars` (default `1000`) caps how many form inputs a request can 
 max_input_vars = 5000
 post_max_size = 16M
 ```
-
----
-
-[← Supported element types](supported-element-types.md) · [Changelog →](../resources/changelog.md)

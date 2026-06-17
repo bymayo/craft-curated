@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Features](../README.md#features) › Field settings
-
 # Field settings
 
 A reference for every Curated setting — what it does, its default, and anything to watch out for. Field-level settings are configured when you create or edit the field; the plugin-level setting is on the Curated plugin's settings page.
@@ -39,7 +37,3 @@ By default, removing an item from a Curated field is *soft*: it drops out of the
 When **Fully remove on delete** is **on**, removing an item from a Curated field also deletes **every native relation row** between the two elements — in both directions, across any relation field. There is no undo.
 
 > ⚠️ With this on, an editor removing an item here will silently edit the canonical relation elsewhere in Craft, not just this field. It's off by default for a reason. See [Large lists & limits](../guides/large-lists.md#warnings) for the full warning.
-
----
-
-[← Reordering](reordering.md) · [Element index column →](element-index.md)

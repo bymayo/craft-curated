@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Guides](../README.md#guides) › Use cases
-
 # Use cases
 
 Curated shines anywhere the relation already exists but the *order* matters — and where that order should differ depending on which element you're looking at. Here are common scenarios with the setup and a front-end snippet for each.
@@ -57,7 +55,3 @@ Drag episodes into the right sequence per series, modules per course, or chapter
     {{ loop.index }}. {{ episode.title }}
 {% endfor %}
 ```
-
----
-
-[← GraphQL](../templating/graphql.md) · [How Curated compares →](comparison.md)

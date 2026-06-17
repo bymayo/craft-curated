@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Features](../README.md#features) › Overview
-
 # Features overview
 
 Everything Curated does, at a glance. Each item links to a deeper page where there is one.
@@ -17,7 +15,3 @@ Everything Curated does, at a glance. Each item links to a deeper page where the
 - **GraphQL** — query the field on its host element with all the usual element arguments (`limit`, `status`, `search`, etc.), and mutate it with a list of IDs in your desired curated order. See [GraphQL](../templating/graphql.md).
 - **Per-site ordering** — different order per site.
 - **Element-index column** — each Curated field is a column option on its host element's index. Shows the first curated item with a "+N" overflow for the rest, exactly like Craft's native relation field columns. See [Element index column](element-index.md).
-
----
-
-[← Setup](../get-started/setup.md) · [How Curated works →](how-it-works.md)

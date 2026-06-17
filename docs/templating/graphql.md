@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Templating](../README.md#templating) › GraphQL
-
 # GraphQL
 
 Curated fields surface on their host element with the standard element argument set for the target type (`limit`, `offset`, `status`, `search`, `orderBy`, etc.). The resolver returns the saved curated order, then applies any arguments you pass.
@@ -35,7 +33,3 @@ mutation {
 ```
 
 The order of the IDs in the array becomes the curated order.
-
----
-
-[← Twig](twig.md) · [Use cases →](../guides/use-cases.md)

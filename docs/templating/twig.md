@@ -1,5 +1,3 @@
-[Docs](../README.md) › [Templating](../README.md#templating) › Twig
-
 # Twig
 
 A Curated field returns a chainable element query, so it behaves like any native relation field in your templates. The examples assume the field handle is `curatedProducts` on a Category.
@@ -35,7 +33,3 @@ To get the curated order from the *target* element's query (the other direction)
 - The second argument is the **handle** of the Curated field on that source.
 
 Returns empty if the field doesn't exist on that source's field layout.
-
----
-
-[← Sync](../features/sync.md) · [GraphQL →](graphql.md)
