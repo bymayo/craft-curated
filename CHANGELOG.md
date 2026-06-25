@@ -1,5 +1,10 @@
 # Release Notes for Curated
 
+## 1.0.4 - 2026-06-25
+
+### Fixed
+- `resave/entries` (and other console saves) no longer error with "Session does not exist in a console request". Pinned state is preserved from the database during console saves.
+
 ## 1.0.3 - 2026-06-10
 
 ### Fixed

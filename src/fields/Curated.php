@@ -862,7 +862,10 @@ CSS);
         // the same value. Strip the key before resolving chip IDs.
         if (is_array($value) && array_key_exists('__pinned', $value)) {
             $canonicalId = $this->pinSessionCanonicalId($element);
-            if ($canonicalId > 0) {
+            // The session component only exists in web requests; the `__pinned`
+            // sub-key only ever arrives via a web POST anyway, so skip the
+            // stash entirely in console contexts.
+            if ($canonicalId > 0 && !Craft::$app->getRequest()->getIsConsoleRequest()) {
                 $sessionKey = self::PIN_SESSION_PREFIX . $this->id . ':' . $canonicalId;
                 Craft::$app->getSession()->set($sessionKey, (string)$value['__pinned']);
             }
@@ -1054,16 +1057,23 @@ CSS);
             // canonical save has consumed it.
             $pinnedIds = [];
             $sessionKey = $sourceId > 0 ? self::PIN_SESSION_PREFIX . $this->id . ':' . $sourceId : null;
-            $session = Craft::$app->getSession();
-            $raw = $sessionKey !== null ? $session->get($sessionKey) : null;
+
+            // The `session` component only exists in web requests. In a console
+            // request (e.g. `resave/entries`) there's no POST body and no
+            // session to read, so leave $raw null and fall through to
+            // preserving the existing DB pin state below.
+            $request = Craft::$app->getRequest();
+            $isConsole = $request->getIsConsoleRequest();
+            $raw = (!$isConsole && $sessionKey !== null)
+                ? Craft::$app->getSession()->get($sessionKey)
+                : null;
 
             // Craft fires a cascade of internal afterElementSave calls after a
             // user save — including ones with no POST body for this field. If
             // we have no fresh pin data from this request, preserve the
             // existing DB pinned state instead of wiping it.
             $fieldInPost = false;
-            $request = Craft::$app->getRequest();
-            if (!$request->getIsConsoleRequest()) {
+            if (!$isConsole) {
                 $bodyFields = $request->getBodyParam('fields', []);
                 $fieldInPost = is_array($bodyFields) && isset($bodyFields[$this->handle]);
             }
