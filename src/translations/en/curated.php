@@ -19,7 +19,7 @@ return [
     'Which sources do you want to select elements from?' => 'Which sources do you want to select elements from?',
     'No sources defined for this element type yet.' => 'No sources defined for this element type yet.',
     'Populate from all elements' => 'Populate from all elements',
-    'Fill this field with every element from the sources above, ignoring relations. Use it for a page nothing relates to, e.g. a blog listing page. Sources can\'t be set to All. Every element loads into the field, so large sections will be slow to edit.' => 'Fill this field with every element from the sources above, ignoring relations. Use it for a page nothing relates to, e.g. a blog listing page. Sources can\'t be set to All. Every element loads into the field, so large sections will be slow to edit.',
+    'Fill this field with every element from the sources above, ignoring relations. Use it for a page nothing relates to, e.g. a blog listing page. Every element loads into the field, so large sections will be slow to edit. Sources can\'t be set to All.' => 'Fill this field with every element from the sources above, ignoring relations. Use it for a page nothing relates to, e.g. a blog listing page. Every element loads into the field, so large sections will be slow to edit. Sources can\'t be set to All.',
     'Choose specific sources above. This setting can\'t be used with "All".' => 'Choose specific sources above. This setting can\'t be used with "All".',
     'Default Placement' => 'Default Placement',
     'Where new elements should be placed by default in the field.' => 'Where new elements should be placed by default in the field.',
