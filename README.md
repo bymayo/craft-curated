@@ -23,6 +23,7 @@ Craft can show you related elements, but can't reorder them when the relation li
 
 - **Per-source sort order**: the same Entry can be #1 on one Category page and #9 on another. Same goes for Products in storefront categories, Assets in galleries, or Users on different team pages.
 - **Auto-populates**: the field fills itself from every native relation between the source and target type, in either direction. No configuration.
+- **Populate from all elements**: for a parent nothing relates to — a Work index page listing every Work entry — drop the relation requirement and fill the field from its sources instead. Still picks up new elements automatically; still fully orderable.
 - **Default Placement**: where auto-discovered relations land before they're explicitly ordered. Before or after other elements, title, date created/updated, random, plus **price** for Commerce Products and Variants.
 - **Quick reorder actions**: Move to top / bottom / position N inside each item's menu, alongside Craft's Move up / Move down.
 - **Pin items**: pin items to always lead the list, per source. Survives sorts, drag-reorders, and new auto-discovered relations.

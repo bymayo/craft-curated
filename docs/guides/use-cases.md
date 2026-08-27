@@ -14,6 +14,20 @@ Reorder products per category and move popular items to the top. The same produc
 {% endfor %}
 ```
 
+## Index pages ordering their whole section
+
+A Work index page that orders every Work entry, not a hand-picked subset. Nothing relates to the index page and it would make no sense to relate each piece of work to it, so turn on [Populate from all elements](../features/field-settings.md#populate-from-all-elements) and point **Sources** at the Work section. New work appears in the field as soon as it's created, and the page keeps a hand-tuned order.
+
+**Setup:** Curated field (`curatedWork`, element type Entry, sources = Work, **Populate from all elements** on) on the **Work index page**.
+
+```twig
+{% for work in entry.curatedWork.all() %}
+    {{ work.title }}
+{% endfor %}
+```
+
+The same shape works for a Team page ordering everyone in a User group, or a Products landing page ordering a whole Product Type.
+
 ## Editorial / blog landing pages
 
 "Related articles", "Editor's picks", or "More from this author" in a deliberate sequence rather than newest-first.

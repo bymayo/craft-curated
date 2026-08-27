@@ -19,6 +19,7 @@ class Install extends Migration
             'targetId' => $this->integer()->notNull(),
             'sortOrder' => $this->integer()->notNull(),
             'pinned' => $this->boolean()->notNull()->defaultValue(false),
+            'excluded' => $this->boolean()->notNull()->defaultValue(false),
             'dateCreated' => $this->dateTime()->notNull(),
             'dateUpdated' => $this->dateTime()->notNull(),
             'uid' => $this->uid(),

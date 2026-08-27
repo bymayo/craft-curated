@@ -48,6 +48,15 @@
     </div>
 {% endfor %}
 
+{{ forms.lightswitchField({
+    label: "Populate from all elements"|t('curated'),
+    instructions: "Fill this field with every element from the sources above, ignoring relations. Use it for a page nothing relates to, e.g. a blog listing page. Every element loads into the field, so large sections will be slow to edit. Sources can't be set to All."|t('curated'),
+    id: 'populateFromAllElements',
+    name: 'populateFromAllElements',
+    on: field.populateFromAllElements,
+    errors: field.getErrors('populateFromAllElements'),
+}) }}
+
 {{ forms.selectField({
     label: "Default Placement"|t('curated'),
     instructions: "Where new elements should be placed by default in the field."|t('curated'),
@@ -61,7 +70,7 @@
 
 {{ forms.lightswitchField({
     label: "Allow adding elements"|t('curated'),
-    instructions: "Show add button. Items added through it appear only in this field, not elsewhere as related items."|t('curated'),
+    instructions: "Show add button. Items added through it appear only in this field, not elsewhere as related items — and with \"Populate from all elements\" on, it's how an editor puts back an element they removed."|t('curated'),
     id: 'allowAdd',
     name: 'allowAdd',
     on: field.allowAdd,

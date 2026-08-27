@@ -77,6 +77,23 @@ class Curated extends Field implements PreviewableFieldInterface
     public bool $allowAdd = false;
 
     /**
+     * Populate from every element in the configured sources instead of only
+     * those natively related to the parent.
+     *
+     * The relation-based default can't serve a parent nothing relates to —
+     * a Work index page listing every Work entry, where relating each entry
+     * back to the page would be meaningless. With this on, `sources` alone
+     * defines the set, so the field still picks up new elements as they're
+     * created while keeping manual order and pinning.
+     *
+     * Removal needs a tombstone in this mode: there's no native relation to
+     * delete, so a removed chip is recorded as an excluded row (see
+     * services\Curated::getExcludedIds()) or auto-discovery would pull it
+     * straight back in.
+     */
+    public bool $populateFromAllElements = false;
+
+    /**
      * Session key prefix for pinned-IDs captured in normalizeValue.
      *
      * Saving a drafted entry fires multiple HTTP requests: one that carries
@@ -184,7 +201,33 @@ class Curated extends Field implements PreviewableFieldInterface
             [['sources'], 'safe'],
             [['selectionLabel'], 'string'],
             [['allowAdd'], 'boolean'],
+            [['populateFromAllElements'], 'boolean'],
+            [['sources'], 'validateSourcesForPopulateAll'],
         ]);
+    }
+
+    /**
+     * With `populateFromAllElements` on, `sources` is the only thing bounding
+     * the set — leaving it at "All" would pull every element of the target
+     * type on the site into one field. Require a real choice.
+     *
+     * The error goes on `populateFromAllElements`, not `sources`: the sources
+     * control is one of N per-element-type wrappers with a generated ID and
+     * only one is on screen, so an error there has nowhere reliable to render.
+     * The lightswitch is always visible and is what the editor just changed.
+     */
+    public function validateSourcesForPopulateAll(string $attribute): void
+    {
+        if (!$this->populateFromAllElements) {
+            return;
+        }
+        // beforeValidate() has already collapsed an empty selection to '*'.
+        if ($this->sources === '*' || !is_array($this->sources) || empty($this->sources)) {
+            $this->addError('populateFromAllElements', Craft::t(
+                'curated',
+                'Choose specific sources above. This setting can\'t be used with "All".'
+            ));
+        }
     }
 
     /**
@@ -1031,6 +1074,18 @@ CSS);
             // save doesn't lose pins or ordering.
             $sourceId = (int)($element->getCanonicalId() ?? $element->id);
 
+            // Craft fires a cascade of internal afterElementSave calls after a
+            // user save, plus console resaves — neither carries a POST body for
+            // this field. Both the pin stash below and the exclusion tracking
+            // need to tell those apart from a real editor save.
+            $request = Craft::$app->getRequest();
+            $isConsole = $request->getIsConsoleRequest();
+            $fieldInPost = false;
+            if (!$isConsole) {
+                $bodyFields = $request->getBodyParam('fields', []);
+                $fieldInPost = is_array($bodyFields) && isset($bodyFields[$this->handle]);
+            }
+
             // If the "remove native relations" setting is on, find chips that
             // dropped out of the curated order on this save and delete the
             // matching native relation rows. Auto-discovery picks them up
@@ -1049,6 +1104,31 @@ CSS);
                 }
             }
 
+            // In all-elements mode there's no native relation behind a chip, so
+            // removing one has to be recorded explicitly — otherwise the merge
+            // re-discovers the element on the next load and the removal looks
+            // like it never happened. Anything that was on the list before this
+            // save and isn't in $ids now gets a tombstone; anything back in
+            // $ids loses its one (saveOrder() drops overlaps), which is how
+            // re-adding through the picker restores a removed element.
+            //
+            // Only a real editor save can add tombstones. Cascade saves and
+            // console resaves carry no POST for this field, and treating their
+            // $ids as the editor's intent could wipe the whole list.
+            $excludedIds = [];
+            if ($this->populateFromAllElements) {
+                $excludedIds = $service->getExcludedIds($this->id, $sourceId, $element->siteId);
+                if ($fieldInPost) {
+                    $before = $previousMerged ?? $service->getMergedTargetIds($this, $element);
+                    $excludedIds = array_merge($excludedIds, array_diff($before, $ids));
+                }
+                $idSet = array_flip($ids);
+                $excludedIds = array_values(array_filter(
+                    array_unique($excludedIds),
+                    fn($id) => !isset($idSet[$id])
+                ));
+            }
+
             // Pinned IDs ride along in the hidden `__pinned` sub-key of the
             // field's POST array. Captured in normalizeValue into the user's
             // session, keyed by field ID + canonical element ID, so saves
@@ -1062,21 +1142,12 @@ CSS);
             // request (e.g. `resave/entries`) there's no POST body and no
             // session to read, so leave $raw null and fall through to
             // preserving the existing DB pin state below.
-            $request = Craft::$app->getRequest();
-            $isConsole = $request->getIsConsoleRequest();
             $raw = (!$isConsole && $sessionKey !== null)
                 ? Craft::$app->getSession()->get($sessionKey)
                 : null;
 
-            // Craft fires a cascade of internal afterElementSave calls after a
-            // user save — including ones with no POST body for this field. If
-            // we have no fresh pin data from this request, preserve the
+            // If we have no fresh pin data from this request, preserve the
             // existing DB pinned state instead of wiping it.
-            $fieldInPost = false;
-            if (!$isConsole) {
-                $bodyFields = $request->getBodyParam('fields', []);
-                $fieldInPost = is_array($bodyFields) && isset($bodyFields[$this->handle]);
-            }
             if (($raw === null || $raw === '') && !$fieldInPost) {
                 $existingPinned = $service->getPinnedIds($this->id, $sourceId, $element->siteId);
                 $raw = implode(',', $existingPinned);
@@ -1094,7 +1165,8 @@ CSS);
                 $sourceId,
                 $element->siteId,
                 $ids,
-                $pinnedIds
+                $pinnedIds,
+                $excludedIds
             );
 
             // Intentionally NOT clearing the session entry here. Craft fires

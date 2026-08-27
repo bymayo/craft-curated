@@ -22,6 +22,7 @@ class Curated extends Component
 {
     /**
      * Return the curated order from the join table only (no native merge).
+     * Excluded rows are tombstones, not order — they're left out.
      *
      * @return int[]
      */
@@ -33,6 +34,7 @@ class Curated extends Component
                 'fieldId' => $fieldId,
                 'sourceId' => $sourceId,
                 'sourceSiteId' => $sourceSiteId,
+                'excluded' => false,
             ])
             ->orderBy(['pinned' => SORT_DESC, 'sortOrder' => SORT_ASC])
             ->column();
@@ -52,8 +54,33 @@ class Curated extends Component
                 'sourceId' => $sourceId,
                 'sourceSiteId' => $sourceSiteId,
                 'pinned' => true,
+                'excluded' => false,
             ])
             ->orderBy(['sortOrder' => SORT_ASC])
+            ->column());
+    }
+
+    /**
+     * IDs the editor has removed from a (field, source, site) and that
+     * auto-discovery must not pull back in.
+     *
+     * Only written by fields with `populateFromAllElements` on: in relation
+     * mode, removing the underlying relation is the way to drop an element,
+     * but in all-elements mode there is no relation to remove, so removal
+     * has to be recorded explicitly or the element reappears on next load.
+     *
+     * @return int[]
+     */
+    public function getExcludedIds(int $fieldId, int $sourceId, ?int $sourceSiteId): array
+    {
+        return array_map('intval', CuratedRelation::find()
+            ->select(['targetId'])
+            ->where([
+                'fieldId' => $fieldId,
+                'sourceId' => $sourceId,
+                'sourceSiteId' => $sourceSiteId,
+                'excluded' => true,
+            ])
             ->column());
     }
 
@@ -84,9 +111,10 @@ class Curated extends Component
 
         $native = $this->getNativeRelatedIds($field, $parent);
         $seen = array_flip(array_merge($pinnedIds, $curated));
+        $excluded = array_flip($this->getExcludedIds($field->id, $parentId, $parent->siteId));
         $newNatives = [];
         foreach ($native as $id) {
-            if (!isset($seen[$id])) {
+            if (!isset($seen[$id]) && !isset($excluded[$id])) {
                 $newNatives[] = $id;
                 $seen[$id] = true;
             }
@@ -100,8 +128,15 @@ class Curated extends Component
     }
 
     /**
-     * Every element of $field's target type that has any native relation to
-     * $parent, in either direction. Honors the field's `initialSort`.
+     * The elements $field should auto-discover for $parent.
+     *
+     * Normally that's every element of the target type with a native relation
+     * to $parent in either direction. When the field has
+     * `populateFromAllElements` on, the relation constraint is dropped and
+     * the configured sources alone define the set — for parents nothing
+     * relates to, such as a Work index page listing every Work entry.
+     *
+     * Honors the field's `initialSort` either way.
      *
      * @return int[]
      */
@@ -122,10 +157,28 @@ class Curated extends Component
         /** @var class-string<ElementInterface> $targetClass */
         $query = $targetClass::find()
             ->status(null)
-            ->siteId($parent->siteId)
-            ->relatedTo(count($relationTargets) > 1
+            ->siteId($parent->siteId);
+
+        if ($field->populateFromAllElements) {
+            // Nothing scopes the set but `sources`, so the parent itself can
+            // fall inside it — a Work index page sitting in the same section
+            // as the Work entries it lists. Keep the parent and its owner
+            // chain out so a field can never list its own element.
+            $selfIds = [];
+            foreach ($relationTargets as $target) {
+                $id = (int)($target->getCanonicalId() ?? $target->id);
+                if ($id > 0) {
+                    $selfIds[] = $id;
+                }
+            }
+            if ($selfIds) {
+                $query->id(array_merge(['not'], array_unique($selfIds)));
+            }
+        } else {
+            $query->relatedTo(count($relationTargets) > 1
                 ? array_merge(['or'], $relationTargets)
                 : $parent);
+        }
 
         $this->applySources($field, $query);
         $this->applyInitialSort($query, $field->initialSort);
@@ -301,12 +354,25 @@ class Curated extends Component
      *
      * Caller is responsible for passing IDs in the desired order.
      *
+     * Every row for the (field, source, site) is rewritten, so any excluded
+     * tombstones the caller wants kept must be passed in `$excludedIds` —
+     * they're stored after the ordered targets, never pinned, and any ID
+     * that also appears in `$targetIds` loses its tombstone (that's how
+     * re-adding an element through the picker restores it).
+     *
      * @param int[] $targetIds
+     * @param int[] $pinnedIds
+     * @param int[] $excludedIds
      */
-    public function saveOrder(int $fieldId, int $sourceId, ?int $sourceSiteId, array $targetIds, array $pinnedIds = []): void
+    public function saveOrder(int $fieldId, int $sourceId, ?int $sourceSiteId, array $targetIds, array $pinnedIds = [], array $excludedIds = []): void
     {
         $db = Craft::$app->getDb();
         $pinnedSet = array_flip(array_map('intval', $pinnedIds));
+        $targetSet = array_flip(array_map('intval', $targetIds));
+        $excludedIds = array_values(array_unique(array_filter(
+            array_map('intval', $excludedIds),
+            fn($id) => $id > 0 && !isset($targetSet[$id])
+        )));
         $transaction = $db->beginTransaction();
 
         try {
@@ -328,6 +394,25 @@ class Curated extends Component
                     (int)$targetId,
                     $i + 1,
                     isset($pinnedSet[(int)$targetId]) ? 1 : 0,
+                    0,
+                    $now,
+                    $now,
+                    StringHelper::UUID(),
+                ];
+            }
+
+            // Tombstones carry on the sort sequence so the unique index is
+            // satisfied, but their order is never read back.
+            $offset = count($rows);
+            foreach ($excludedIds as $i => $targetId) {
+                $rows[] = [
+                    $fieldId,
+                    $sourceId,
+                    $sourceSiteId,
+                    $targetId,
+                    $offset + $i + 1,
+                    0,
+                    1,
                     $now,
                     $now,
                     StringHelper::UUID(),
@@ -338,7 +423,7 @@ class Curated extends Component
                 $db->createCommand()
                     ->batchInsert('{{%curated_relations}}', [
                         'fieldId', 'sourceId', 'sourceSiteId', 'targetId',
-                        'sortOrder', 'pinned', 'dateCreated', 'dateUpdated', 'uid',
+                        'sortOrder', 'pinned', 'excluded', 'dateCreated', 'dateUpdated', 'uid',
                     ], $rows)
                     ->execute();
             }
@@ -360,7 +445,16 @@ class Curated extends Component
             return;
         }
         $existing[] = $targetId;
-        $this->saveOrder($fieldId, $sourceId, $sourceSiteId, $existing);
+        // Appending an excluded target un-excludes it — saveOrder() drops any
+        // tombstone whose ID is back in the ordered list.
+        $this->saveOrder(
+            $fieldId,
+            $sourceId,
+            $sourceSiteId,
+            $existing,
+            $this->getPinnedIds($fieldId, $sourceId, $sourceSiteId),
+            $this->getExcludedIds($fieldId, $sourceId, $sourceSiteId)
+        );
     }
 
     /**
@@ -373,7 +467,14 @@ class Curated extends Component
         if (count($filtered) === count($existing)) {
             return;
         }
-        $this->saveOrder($fieldId, $sourceId, $sourceSiteId, $filtered);
+        $this->saveOrder(
+            $fieldId,
+            $sourceId,
+            $sourceSiteId,
+            $filtered,
+            $this->getPinnedIds($fieldId, $sourceId, $sourceSiteId),
+            $this->getExcludedIds($fieldId, $sourceId, $sourceSiteId)
+        );
     }
 
     /**
@@ -419,10 +520,15 @@ class Curated extends Component
 
         $existing = array_map('intval', $this->getTargetIds($field->id, $parent->id, $parent->siteId));
         $seen = array_flip($existing);
+        // saveOrder() rewrites every row, so pins and tombstones must both be
+        // read up front and passed back through or a sync would clear them.
+        $pinnedIds = $this->getPinnedIds($field->id, $parent->id, $parent->siteId);
+        $excludedIds = $this->getExcludedIds($field->id, $parent->id, $parent->siteId);
+        $excludedSet = array_flip($excludedIds);
 
         $appended = 0;
         foreach ($native as $id) {
-            if (!isset($seen[$id])) {
+            if (!isset($seen[$id]) && !isset($excludedSet[$id])) {
                 $existing[] = $id;
                 $seen[$id] = true;
                 $appended++;
@@ -430,10 +536,7 @@ class Curated extends Component
         }
 
         if ($appended > 0) {
-            // saveOrder() rewrites every row, so the existing pinned flags must
-            // be passed through or they'd be cleared on each sync that appends.
-            $pinnedIds = $this->getPinnedIds($field->id, $parent->id, $parent->siteId);
-            $this->saveOrder($field->id, $parent->id, $parent->siteId, $existing, $pinnedIds);
+            $this->saveOrder($field->id, $parent->id, $parent->siteId, $existing, $pinnedIds, $excludedIds);
         }
 
         return $appended;

@@ -1,5 +1,11 @@
 # Release Notes for Curated
 
+## 1.0.5 - 2026-08-27
+
+### Added
+- **Populate from all elements** field setting. Fills the field from every element in the chosen sources instead of only related ones, for parents nothing relates to such as a section index page. Requires specific sources, not All.
+- Removals now stick on fields with **Populate from all elements** on. Re-add through the picker to restore.
+
 ## 1.0.4 - 2026-06-25
 
 ### Fixed

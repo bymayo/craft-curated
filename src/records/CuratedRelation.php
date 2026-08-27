@@ -12,6 +12,7 @@ use craft\db\ActiveRecord;
  * @property int $targetId
  * @property int $sortOrder
  * @property bool $pinned
+ * @property bool $excluded
  */
 class CuratedRelation extends ActiveRecord
 {
